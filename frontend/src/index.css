@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  @apply bg-cream-100 text-ink-800;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+}
+
+/* Reading-optimized selection */
+::selection {
+  @apply bg-accent-muted text-ink-900;
+}
+
+/* Smooth focus rings */
+*:focus-visible {
+  @apply outline-none ring-2 ring-accent ring-offset-2 ring-offset-cream-100;
+}
+
+/* Custom scrollbar for reading areas */
+.scroll-reading::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scroll-reading::-webkit-scrollbar-track {
+  @apply bg-cream-200 rounded-full;
+}
+.scroll-reading::-webkit-scrollbar-thumb {
+  @apply bg-cream-400 rounded-full hover:bg-ink-500;
+}

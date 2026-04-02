@@ -1,0 +1,786 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import {
+  ChevronLeft, ChevronRight, BookOpen, Download, Share2, Settings,
+  Search, ZoomIn, ZoomOut, Highlighter, StickyNote, Camera, X,
+  Bookmark, CheckCircle, Menu, Moon, Sun
+} from 'lucide-react';
+import api from '../api/axiosClient';
+
+export default function PDFReader() {
+  const { bookId } = useParams();
+  const navigate = useNavigate();
+  const readerRef = useRef(null);
+
+  const [book, setBook] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [bookContent, setBookContent] = useState('');
+  const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [zoomLevel, setZoomLevel] = useState(100);
+  const [darkMode, setDarkMode] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(false);
+
+  const [isMobile, setIsMobile] = useState(false);
+  const [currentChapter, setCurrentChapter] = useState(null);
+  const [chapters, setChapters] = useState([]);
+  const [finishedChapters, setFinishedChapters] = useState(new Set());
+
+  const [highlights, setHighlights] = useState([]);
+  const [notes, setNotes] = useState([]);
+  const [bookmarks, setBookmarks] = useState([]);
+  const [isHighlighting, setIsHighlighting] = useState(false);
+  const [selectedText, setSelectedText] = useState('');
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [noteText, setNoteText] = useState('');
+
+  const [screenshotWarnings, setScreenshotWarnings] = useState(0);
+  const [showScreenshotWarning, setShowScreenshotWarning] = useState(false);
+  const [readingSession, setReadingSession] = useState(null);
+
+  // ─── Progress ─────────────────────────────────────────────────────────────
+  const updateProgress = useCallback(async (page) => {
+    try {
+      await api.post('/api/reader/pdf/update_progress/', {
+        book_id: bookId,
+        current_page: page,
+        total_pages: totalPages,
+      });
+    } catch (err) {
+      console.error('Failed to update progress:', err);
+    }
+  }, [bookId, totalPages]);
+
+  // ─── Page loading ─────────────────────────────────────────────────────────
+  const loadPage = useCallback(async (page) => {
+    try {
+      console.log(`📄 Loading page ${page} of ${totalPages}`);
+      
+      const res = await api.get(`/api/reader/pdf/${bookId}/read_page/?page=${page}`);
+      
+      if (res.data && !res.data.error) {
+        setBookContent(res.data.content);
+        setCurrentPage(page);
+        
+        // Update progress
+        updateProgress(page);
+        
+        // Scroll to top
+        readerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+        
+        // Check if we're in a new chapter
+        if (chapters.length > 0) {
+          const newChapter = chapters.find(chapter => 
+            chapter.pages.includes(page)
+          );
+          
+          if (newChapter && newChapter.id !== currentChapter?.id) {
+            console.log(`📍 Moved to chapter: ${newChapter.title} (Chapter ${newChapter.number})`);
+            setCurrentChapter(newChapter);
+          }
+        }
+      } else {
+        console.error('❌ Page response error:', res.data.error);
+      }
+    } catch (err) {
+      console.error('❌ Failed to load page:', err);
+    }
+  }, [bookId, totalPages, updateProgress, chapters, currentChapter]);
+
+  // ─── Navigation ───────────────────────────────────────────────────────────
+  const goToPage = useCallback((page) => {
+    if (page >= 1 && page <= totalPages) loadPage(page);
+  }, [totalPages, loadPage]);
+
+  const nextPage = useCallback(() => goToPage(currentPage + 1), [currentPage, goToPage]);
+  const prevPage = useCallback(() => goToPage(currentPage - 1), [currentPage, goToPage]);
+  const zoomIn  = useCallback(() => setZoomLevel(prev => Math.min(prev + 10, 200)), []);
+  const zoomOut = useCallback(() => setZoomLevel(prev => Math.max(prev - 10, 50)), []);
+
+  // ─── Chapter helpers ──────────────────────────────────────────────────────
+  const goToChapter = useCallback((chapterIndex) => {
+    if (chapterIndex < 0 || chapterIndex >= chapters.length) return;
+    const chapter = chapters[chapterIndex];
+    if (!chapter) return;
+    
+    console.log(`📖 Navigating to chapter: ${chapter.title} (Chapter ${chapter.number})`);
+    
+    // Navigate to first page of this chapter
+    const firstPage = chapter.startPage || 1;
+    if (!isNaN(firstPage)) {
+      goToPage(firstPage);
+    }
+  }, [chapters, goToPage]);
+
+  const markChapterAsFinished = useCallback(async (chapterNumber) => {
+    try {
+      console.log(`✅ Marking chapter ${chapterNumber} as finished for charging`);
+      
+      const response = await api.post('/api/reader/features/mark_chapter_finished/', {
+        book_id: bookId,
+        chapter_number: chapterNumber,
+        current_page: currentPage,
+        total_pages: totalPages
+      });
+      
+      console.log('💳 Chapter completion response:', response.data);
+      
+      setFinishedChapters(prev => new Set([...prev, chapterNumber]));
+      
+      // Show success message for charging
+      if (response.data.success) {
+        console.log(`💰 Chapter ${chapterNumber} completed - charging triggered`);
+        // You could show a toast or notification here
+      }
+    } catch (err) {
+      console.error('❌ Failed to mark chapter as finished:', err);
+    }
+  }, [bookId, currentPage, totalPages]);
+
+  const goToNextChapter = useCallback(() => {
+    if (!currentChapter || chapters.length === 0) return;
+    const currentIndex = chapters.findIndex(ch => ch.id === currentChapter.id);
+    if (currentIndex + 1 < chapters.length) {
+      markChapterAsFinished(currentChapter.number);
+      goToChapter(currentIndex + 1);
+    }
+  }, [currentChapter, chapters, goToChapter, markChapterAsFinished]);
+
+  // ─── Parse chapters ───────────────────────────────────────────────────────
+  const parseChaptersFromContent = useCallback((content) => {
+    try {
+      console.log('🔍 Parsing chapters from content...');
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = content;
+      
+      // Parse chapters
+      const chapterElements = tempDiv.querySelectorAll('.chapter');
+      const parsed = Array.from(chapterElements).map((el, index) => {
+        const num = el.getAttribute('data-chapter');
+        const titleEl = el.querySelector('h2, h3');
+        const pages = el.querySelectorAll('.page');
+        
+        // Calculate chapter page range
+        const pageNumbers = Array.from(pages).map(page => 
+          parseInt(page.getAttribute('data-page'))
+        ).filter(p => !isNaN(p));
+        
+        const startPage = Math.min(...pageNumbers) || 1;
+        const endPage = Math.max(...pageNumbers) || startPage;
+        const totalPages = endPage - startPage + 1;
+        
+        console.log(`📖 Chapter ${num}: "${titleEl?.textContent}" (Pages ${startPage}-${endPage}, ${totalPages} pages)`);
+        
+        return {
+          id: index + 1,
+          number: parseInt(num) || index + 1,
+          title: titleEl ? titleEl.textContent : `Chapter ${num}`,
+          element: el,
+          startPage,
+          endPage,
+          totalPages,
+          pages: pageNumbers
+        };
+      });
+      
+      console.log(`📚 Parsed ${parsed.length} chapters:`, parsed);
+      setChapters(parsed);
+      setCurrentChapter(parsed[0] || null);
+      
+      // Set current chapter based on current page
+      const currentChapterFromPage = parsed.find(chapter => 
+        chapter.pages.includes(currentPage)
+      );
+      if (currentChapterFromPage) {
+        console.log(`📍 Current chapter: ${currentChapterFromPage.title} (Page ${currentPage})`);
+        setCurrentChapter(currentChapterFromPage);
+      }
+      
+      tempDiv.remove();
+    } catch (err) {
+      console.error('❌ Failed to parse chapters:', err);
+    }
+  }, [currentPage]);
+
+  // ─── Annotations ──────────────────────────────────────────────────────────
+  const loadAnnotations = useCallback(async () => {
+    try {
+      const [hlRes, notesRes, bmRes] = await Promise.all([
+        api.get(`/api/reader/features/highlights/?book_id=${bookId}&page=${currentPage}`),
+        api.get(`/api/reader/features/notes/?book_id=${bookId}&page=${currentPage}`),
+        api.get(`/api/reader/features/bookmarks/?book_id=${bookId}`),
+      ]);
+      setHighlights(hlRes.data || []);
+      setNotes(notesRes.data || []);
+      setBookmarks(bmRes.data || []);
+    } catch (err) {
+      console.error('Failed to load annotations:', err);
+    }
+  }, [bookId, currentPage]);
+
+  const handleTextSelection = useCallback(() => {
+    const selection = window.getSelection();
+    const text = selection?.toString().trim();
+    if (text) setSelectedText(text);
+  }, []);
+
+  const addHighlight = useCallback(async (color = 'yellow') => {
+    if (!selectedText) return;
+    try {
+      const res = await api.post('/api/reader/features/add_highlight/', {
+        book_id: bookId,
+        page_number: currentPage,
+        content: selectedText,
+        color,
+        start_position: 0,
+        end_position: selectedText.length,
+      });
+      setHighlights(prev => [...prev, res.data]);
+      setIsHighlighting(false);
+      setSelectedText('');
+      window.getSelection()?.removeAllRanges();
+    } catch (err) {
+      console.error('Failed to add highlight:', err);
+    }
+  }, [selectedText, bookId, currentPage]);
+
+  const addNote = useCallback(async () => {
+    if (!noteText.trim()) return;
+    try {
+      const res = await api.post('/api/reader/features/add_note/', {
+        book_id: bookId,
+        page_number: currentPage,
+        content: noteText,
+        position: 0,
+      });
+      setNotes(prev => [...prev, res.data]);
+      setShowNoteModal(false);
+      setNoteText('');
+      setSelectedText('');
+    } catch (err) {
+      console.error('Failed to add note:', err);
+    }
+  }, [noteText, bookId, currentPage]);
+
+  const addBookmark = useCallback(async () => {
+    try {
+      const res = await api.post('/api/reader/features/add_bookmark/', {
+        book_id: bookId,
+        page_number: currentPage,
+        title: `Page ${currentPage}`,
+      });
+      setBookmarks(prev => [...prev, res.data]);
+    } catch (err) {
+      console.error('Failed to add bookmark:', err);
+    }
+  }, [bookId, currentPage]);
+
+  // ─── Screenshot detection ─────────────────────────────────────────────────
+  const handleScreenshotAttempt = useCallback(() => {
+    setScreenshotWarnings(prev => prev + 1);
+    setShowScreenshotWarning(true);
+    api.post('/api/reader/features/report_screenshot_attempt/', {
+      book_id: bookId,
+      page_number: currentPage,
+      warning_count: screenshotWarnings + 1,
+    }).catch(() => {});
+    setTimeout(() => setShowScreenshotWarning(false), 3500);
+  }, [bookId, currentPage, screenshotWarnings]);
+
+  // ─── Reading session ──────────────────────────────────────────────────────
+  const startReadingSession = useCallback(async () => {
+    try {
+      const res = await api.post('/api/reader/features/start_reading_session/', {
+        book_id: bookId,
+        start_page: currentPage,
+      });
+      setReadingSession(res.data.session_id);
+    } catch (err) {
+      console.error('Failed to start session:', err);
+    }
+  }, [bookId]); // intentionally omit currentPage to avoid infinite re-render
+
+  const endReadingSession = useCallback(async () => {
+    if (!readingSession) return;
+    try {
+      await api.post('/api/reader/features/end_reading_session/', {
+        session_id: readingSession,
+      });
+      setReadingSession(null);
+    } catch (err) {
+      console.error('Failed to end session:', err);
+    }
+  }, [readingSession]);
+
+  // ─── Load book ────────────────────────────────────────────────────────────
+  const loadBook = useCallback(async () => {
+    try {
+      const res = await api.get(`/api/reader/pdf/${bookId}/read_pdf/`);
+      if (!res.data || res.data.error) {
+        setError('Failed to load book');
+        setLoading(false);
+        return;
+      }
+      const data = res.data;
+      setBook(data);
+      setTotalPages(data.total_pages || 0);
+      setCurrentPage(data.current_page || 1);
+      setBookContent(data.content || '');
+      if (data.content_source === 'manual') parseChaptersFromContent(data.content);
+      setLoading(false);
+    } catch (err) {
+      console.error('Failed to load book:', err);
+      setError('Failed to load book. Please try again.');
+      setLoading(false);
+    }
+  }, [bookId, parseChaptersFromContent]);
+
+  // ─── Search ───────────────────────────────────────────────────────────────
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (!searchTerm.trim()) return;
+    const el = document.querySelector('.pdf-content');
+    if (!el) return;
+    const lower = searchTerm.toLowerCase();
+    const content = el.textContent?.toLowerCase() || '';
+    const idx = content.indexOf(lower);
+    if (idx !== -1) {
+      const ratio = idx / content.length;
+      el.scrollTop = ratio * el.scrollHeight;
+    }
+  };
+
+  // ─── Effects ──────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
+  // Initial load — run once
+  useEffect(() => {
+    loadBook();
+    startReadingSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookId]);
+
+  // Load annotations when page changes
+  useEffect(() => {
+    if (bookId) loadAnnotations();
+  }, [currentPage, loadAnnotations]);
+
+  // Cleanup session on unmount
+  useEffect(() => {
+    return () => { endReadingSession(); };
+  }, [endReadingSession]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.key === 'ArrowRight') nextPage();
+      if (e.key === 'ArrowLeft') prevPage();
+      if (e.key === '+' || e.key === '=') zoomIn();
+      if (e.key === '-' || e.key === '_') zoomOut();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [nextPage, prevPage, zoomIn, zoomOut]);
+
+  // Screenshot detection
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'PrintScreen' || (e.ctrlKey && e.key === 'p') || (e.metaKey && e.key === 'p')) {
+        e.preventDefault();
+        handleScreenshotAttempt();
+      }
+    };
+    const onPaste = (e) => {
+      const items = e.clipboardData?.items || [];
+      for (const item of items) {
+        if (item.type.startsWith('image/')) { handleScreenshotAttempt(); break; }
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('paste', onPaste);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('paste', onPaste);
+    };
+  }, [handleScreenshotAttempt]);
+
+  // ─── Derived values ───────────────────────────────────────────────────────
+  const progress = totalPages > 0 ? Math.round((currentPage / totalPages) * 100) : 0;
+  const theme = darkMode
+    ? { bg: '#1a1814', surface: '#242019', text: '#e8e0d0', muted: '#9a9080', border: '#3a3530', accent: '#c8a96e', accentBg: '#2e2a1e' }
+    : { bg: '#faf7f2', surface: '#ffffff', text: '#2c2416', muted: '#8a7a66', border: '#e8e0d4', accent: '#8b6914', accentBg: '#fdf3e0' };
+
+  // ─── Screens ──────────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#faf7f2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: 48, height: 48, border: '3px solid #e8e0d4', borderTopColor: '#8b6914', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
+          <p style={{ color: '#8a7a66', fontFamily: 'Georgia, serif', fontSize: 16 }}>Opening your book…</p>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#faf7f2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center', padding: 32 }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>📖</div>
+          <h2 style={{ fontFamily: 'Georgia, serif', color: '#2c2416', marginBottom: 8 }}>Couldn't open book</h2>
+          <p style={{ color: '#8a7a66', marginBottom: 24 }}>{error}</p>
+          <button onClick={() => navigate('/library')} style={{ background: '#8b6914', color: '#fff', border: 'none', padding: '10px 24px', borderRadius: 8, cursor: 'pointer', fontFamily: 'Georgia, serif' }}>
+            Back to Library
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Main render ──────────────────────────────────────────────────────────
+  return (
+    <div style={{ minHeight: '100vh', background: theme.bg, color: theme.text, fontFamily: 'Georgia, "Times New Roman", serif', transition: 'background 0.3s, color 0.3s' }}>
+
+      {/* ── Top Bar ── */}
+      <header style={{ background: theme.surface, borderBottom: `1px solid ${theme.border}`, position: 'sticky', top: 0, zIndex: 40 }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 20px', height: 56, display: 'flex', alignItems: 'center', gap: 12 }}>
+
+          {/* Back */}
+          <button onClick={() => navigate('/library')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.muted, display: 'flex', alignItems: 'center', gap: 4, padding: '6px 8px', borderRadius: 6 }}>
+            <ChevronLeft size={18} />
+            {!isMobile && <span style={{ fontSize: 14 }}>Library</span>}
+          </button>
+
+          {/* Title area */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: isMobile ? 13 : 15, fontWeight: 600, color: theme.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {book?.title}
+            </p>
+            <p style={{ margin: 0, fontSize: 12, color: theme.muted }}>
+              {book?.author}
+              {book?.is_free && <span style={{ marginLeft: 8, background: theme.accentBg, color: theme.accent, padding: '1px 7px', borderRadius: 10, fontSize: 11 }}>Free</span>}
+              {book?.price > 0 && !book?.is_free && <span style={{ marginLeft: 8, background: theme.accentBg, color: theme.accent, padding: '1px 7px', borderRadius: 10, fontSize: 11 }}>${book.price}</span>}
+            </p>
+          </div>
+
+          {/* Actions */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <button onClick={() => setShowSearch(s => !s)} title="Search" style={iconBtn(theme)}><Search size={16} /></button>
+            <button onClick={zoomOut} title="Zoom out" style={iconBtn(theme)}><ZoomOut size={16} /></button>
+            <span style={{ fontSize: 12, color: theme.muted, minWidth: 34, textAlign: 'center' }}>{zoomLevel}%</span>
+            <button onClick={zoomIn} title="Zoom in" style={iconBtn(theme)}><ZoomIn size={16} /></button>
+            <button onClick={() => setDarkMode(d => !d)} title="Toggle theme" style={iconBtn(theme)}>
+              {darkMode ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
+            {chapters.length > 0 && (
+              <button onClick={() => setShowSidebar(s => !s)} title="Chapters" style={iconBtn(theme)}><Menu size={16} /></button>
+            )}
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div style={{ height: 2, background: theme.border }}>
+          <div style={{ height: '100%', width: `${progress}%`, background: theme.accent, transition: 'width 0.4s ease' }} />
+        </div>
+
+        {/* Inline search */}
+        {showSearch && (
+          <div style={{ borderTop: `1px solid ${theme.border}`, padding: '10px 20px', background: theme.surface }}>
+            <form onSubmit={handleSearch} style={{ display: 'flex', gap: 8, maxWidth: 480, margin: '0 auto' }}>
+              <div style={{ flex: 1, position: 'relative' }}>
+                <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: theme.muted }} />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  placeholder="Search in this book…"
+                  autoFocus
+                  style={{ width: '100%', boxSizing: 'border-box', paddingLeft: 32, paddingRight: 12, paddingTop: 7, paddingBottom: 7, border: `1px solid ${theme.border}`, borderRadius: 7, background: theme.bg, color: theme.text, fontSize: 14, fontFamily: 'inherit', outline: 'none' }}
+                />
+              </div>
+              <button type="submit" style={{ background: theme.accent, color: '#fff', border: 'none', padding: '7px 16px', borderRadius: 7, cursor: 'pointer', fontSize: 14 }}>Find</button>
+              <button type="button" onClick={() => setShowSearch(false)} style={{ background: 'none', border: `1px solid ${theme.border}`, padding: '7px 10px', borderRadius: 7, cursor: 'pointer', color: theme.muted }}>
+                <X size={14} />
+              </button>
+            </form>
+          </div>
+        )}
+      </header>
+
+      {/* ── Layout ── */}
+      <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', gap: 0 }}>
+
+        {/* Sidebar — chapters */}
+        {showSidebar && (
+          <aside style={{ width: 240, flexShrink: 0, borderRight: `1px solid ${theme.border}`, minHeight: 'calc(100vh - 56px)', padding: '20px 0', background: theme.surface, position: 'sticky', top: 56, maxHeight: 'calc(100vh - 56px)', overflowY: 'auto' }}>
+            <p style={{ margin: '0 16px 12px', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: theme.muted, fontFamily: 'system-ui, sans-serif' }}>Contents</p>
+            {chapters.map((ch, idx) => (
+              <button
+                key={ch.id}
+                onClick={() => { goToChapter(idx); if (isMobile) setShowSidebar(false); }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left',
+                  padding: '9px 16px', border: 'none', cursor: 'pointer', fontFamily: 'Georgia, serif', fontSize: 14,
+                  background: currentChapter?.id === ch.id ? theme.accentBg : 'transparent',
+                  color: currentChapter?.id === ch.id ? theme.accent : theme.text,
+                  borderLeft: currentChapter?.id === ch.id ? `3px solid ${theme.accent}` : '3px solid transparent',
+                }}
+              >
+                {finishedChapters.has(ch.number) && <CheckCircle size={13} style={{ color: '#4a9962', flexShrink: 0 }} />}
+                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ch.title}</span>
+              </button>
+            ))}
+          </aside>
+        )}
+
+        {/* Main content */}
+        <main style={{ flex: 1, minWidth: 0 }}>
+
+          {/* Annotation toolbar */}
+          <div style={{ background: theme.surface, borderBottom: `1px solid ${theme.border}`, padding: '8px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <button
+                onClick={() => { if (isHighlighting && selectedText) addHighlight(); else setIsHighlighting(h => !h); }}
+                style={{ ...toolBtn(theme), background: isHighlighting ? '#fde68a' : 'transparent', color: isHighlighting ? '#78450a' : theme.muted, border: `1px solid ${isHighlighting ? '#f6c33a' : theme.border}` }}
+              >
+                <Highlighter size={14} />
+                <span>{isHighlighting ? (selectedText ? 'Apply' : 'Select text…') : 'Highlight'}</span>
+              </button>
+
+              <button
+                onClick={() => { setShowNoteModal(true); setNoteText(''); }}
+                disabled={!selectedText}
+                style={{ ...toolBtn(theme), opacity: selectedText ? 1 : 0.45, cursor: selectedText ? 'pointer' : 'default' }}
+              >
+                <StickyNote size={14} />
+                <span>Note</span>
+              </button>
+
+              <button onClick={addBookmark} style={toolBtn(theme)}>
+                <Bookmark size={14} />
+                <span>Bookmark</span>
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', gap: 12, fontSize: 12, color: theme.muted, fontFamily: 'system-ui, sans-serif' }}>
+              <span>{highlights.length} highlights</span>
+              <span>{notes.length} notes</span>
+              <span>{bookmarks.length} bookmarks</span>
+            </div>
+          </div>
+
+          {/* Reading area */}
+          <div
+            ref={readerRef}
+            className="pdf-content"
+            onMouseUp={handleTextSelection}
+            style={{
+              padding: isMobile ? '28px 20px 100px' : '48px 64px 100px',
+              minHeight: '70vh',
+              fontSize: `${zoomLevel}%`,
+              lineHeight: 1.85,
+              color: theme.text,
+              maxWidth: 700,
+              margin: '0 auto',
+              userSelect: isHighlighting ? 'text' : 'auto',
+            }}
+          >
+            {bookContent ? (
+              <div
+                dangerouslySetInnerHTML={{ __html: bookContent }}
+                style={{
+                  '--reader-text': theme.text,
+                  '--reader-muted': theme.muted,
+                  '--reader-accent': theme.accent,
+                }}
+              />
+            ) : (
+              <div style={{ textAlign: 'center', padding: '80px 0', color: theme.muted }}>
+                <BookOpen size={40} style={{ marginBottom: 12, opacity: 0.4 }} />
+
+      {/* Main content */}
+      <main style={{ flex: 1, minWidth: 0 }}>
+        {chapters.length > 0 && (
+          <div style={{ padding: '20px', borderBottom: `1px solid ${theme.border}` }}>
+            <button onClick={() => goToChapter(chapters.findIndex(ch => ch.id === currentChapter.id) - 1)} disabled={!currentChapter || chapters.findIndex(ch => ch.id === currentChapter.id) <= 0} style={chapterNavBtn(theme)}>
+              <ChevronLeft size={16} /> Previous chapter
+            </button>
+            <button onClick={goToNextChapter} style={{ ...chapterNavBtn(theme), background: theme.accent, color: '#fff', border: 'none' }}>
+              {finishedChapters.has(currentChapter.number) ? 'Next chapter' : 'Finish & continue'}
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        )}
+      </main>
+      </div>
+
+      {/* ── Fixed bottom navigation ── */}
+      <nav style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0,
+        background: theme.surface, borderTop: `1px solid ${theme.border}`,
+        padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20,
+        zIndex: 30,
+      }}>
+        <button
+          onClick={prevPage}
+          disabled={currentPage <= 1}
+          style={{ ...navBtn(theme), opacity: currentPage <= 1 ? 0.35 : 1 }}
+        >
+          <ChevronLeft size={18} />
+          {!isMobile && <span>Previous</span>}
+        </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <input
+            type="number"
+            min={1}
+            max={totalPages}
+            value={currentPage}
+            onChange={e => { const v = parseInt(e.target.value); if (v >= 1 && v <= totalPages) goToPage(v); }}
+            style={{ width: 44, textAlign: 'center', border: `1px solid ${theme.border}`, borderRadius: 6, padding: '4px 0', background: theme.bg, color: theme.text, fontSize: 14, fontFamily: 'Georgia, serif' }}
+          />
+          <span style={{ fontSize: 14, color: theme.muted }}>of {totalPages}</span>
+        </div>
+
+        <button
+          onClick={nextPage}
+          disabled={currentPage >= totalPages}
+          style={{ ...navBtn(theme), opacity: currentPage >= totalPages ? 0.35 : 1 }}
+        >
+          {!isMobile && <span>Next</span>}
+          <ChevronRight size={18} />
+        </button>
+      </nav>
+
+      {/* ── Note Modal ── */}
+      {showNoteModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}>
+          <div style={{ background: theme.surface, borderRadius: 14, padding: 28, maxWidth: 460, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h3 style={{ margin: 0, fontSize: 17, color: theme.text }}>Add Note</h3>
+              <button onClick={() => setShowNoteModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.muted }}><X size={18} /></button>
+            </div>
+            {selectedText && (
+              <div style={{ background: theme.accentBg, border: `1px solid ${theme.border}`, borderLeft: `3px solid ${theme.accent}`, borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 14, color: theme.muted, fontStyle: 'italic', lineHeight: 1.6 }}>
+                "{selectedText.length > 120 ? selectedText.slice(0, 120) + '…' : selectedText}"
+              </div>
+            )}
+            <textarea
+              value={noteText}
+              onChange={e => setNoteText(e.target.value)}
+              placeholder="Write your note here…"
+              rows={5}
+              style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', border: `1px solid ${theme.border}`, borderRadius: 8, background: theme.bg, color: theme.text, fontSize: 14, fontFamily: 'Georgia, serif', lineHeight: 1.7, resize: 'vertical', outline: 'none' }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
+              <button onClick={() => setShowNoteModal(false)} style={{ padding: '8px 18px', border: `1px solid ${theme.border}`, borderRadius: 8, background: 'transparent', color: theme.text, cursor: 'pointer', fontSize: 14 }}>Cancel</button>
+              <button onClick={addNote} style={{ padding: '8px 18px', border: 'none', borderRadius: 8, background: theme.accent, color: '#fff', cursor: 'pointer', fontSize: 14 }}>Save note</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Screenshot warning ── */}
+      {showScreenshotWarning && (
+        <div style={{
+          position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)',
+          background: '#7f1d1d', color: '#fecaca', padding: '14px 22px',
+          borderRadius: 10, zIndex: 60, maxWidth: 380, width: 'calc(100% - 40px)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+          display: 'flex', alignItems: 'flex-start', gap: 12,
+          animation: 'slideDown 0.3s ease',
+        }}>
+          <Camera size={18} style={{ flexShrink: 0, marginTop: 1 }} />
+          <div>
+            <p style={{ margin: '0 0 3px', fontWeight: 600, fontSize: 14 }}>Screenshot detected</p>
+            <p style={{ margin: 0, fontSize: 12, opacity: 0.85 }}>
+              Screenshots are discouraged to protect the author's work.
+              {screenshotWarnings >= 3 && ' Repeated attempts may restrict your access.'}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Global styles ── */}
+      <style>{`
+        @keyframes slideDown {
+          from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+          to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        .pdf-content h1, .pdf-content h2, .pdf-content h3 {
+          font-family: Georgia, "Times New Roman", serif;
+          line-height: 1.35;
+          margin: 2em 0 0.75em;
+        }
+        .pdf-content h1 { font-size: 1.75em; }
+        .pdf-content h2 { font-size: 1.35em; }
+        .pdf-content h3 { font-size: 1.1em; }
+        .pdf-content p  { margin: 0 0 1.4em; }
+        .pdf-content blockquote {
+          border-left: 3px solid var(--reader-accent, #8b6914);
+          margin: 1.5em 0;
+          padding: 0.5em 1.2em;
+          font-style: italic;
+          opacity: 0.85;
+        }
+        .pdf-content a { color: var(--reader-accent, #8b6914); }
+        .pdf-content ::selection { background: rgba(139,105,20,0.25); }
+        * { box-sizing: border-box; }
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button { opacity: 1; }
+      `}</style>
+    </div>
+  );
+}
+
+// ─── Style helpers ─────────────────────────────────────────────────────────────
+function iconBtn(theme) {
+  return {
+    background: 'none', border: 'none', cursor: 'pointer',
+    color: theme.muted, padding: '6px 8px', borderRadius: 6,
+    display: 'flex', alignItems: 'center',
+    transition: 'color 0.15s',
+  };
+}
+
+function toolBtn(theme) {
+  return {
+    display: 'flex', alignItems: 'center', gap: 6,
+    padding: '5px 12px', border: `1px solid ${theme.border}`, borderRadius: 7,
+    background: 'transparent', color: theme.text, cursor: 'pointer',
+    fontSize: 13, fontFamily: 'system-ui, sans-serif',
+    transition: 'background 0.15s',
+  };
+}
+
+function navBtn(theme) {
+  return {
+    display: 'flex', alignItems: 'center', gap: 6,
+    padding: '7px 16px', border: `1px solid ${theme.border}`, borderRadius: 8,
+    background: theme.bg, color: theme.text, cursor: 'pointer',
+    fontSize: 14, fontFamily: 'Georgia, serif',
+    transition: 'opacity 0.15s',
+  };
+}
+
+function chapterNavBtn(theme) {
+  return {
+    display: 'flex', alignItems: 'center', gap: 6,
+    padding: '9px 20px', border: `1px solid ${theme.border}`, borderRadius: 8,
+    background: 'transparent', color: theme.text, cursor: 'pointer',
+    fontSize: 14, fontFamily: 'Georgia, serif',
+  };
+}
