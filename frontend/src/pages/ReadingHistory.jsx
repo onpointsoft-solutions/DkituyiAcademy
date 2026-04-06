@@ -21,8 +21,28 @@ export default function ReadingHistoryPage() {
         
         const userBooks = libraryResponse.data.results || [];
         
+        // Flatten the nested book data like in Library component
+        const flattenedBooks = userBooks.map(libraryEntry => ({
+          id: libraryEntry.id,
+          book: {
+            id: libraryEntry.book.id,
+            title: libraryEntry.book.title,
+            author_name: libraryEntry.book.author_name,
+            cover_display_url: libraryEntry.book.cover_display_url,
+            cover_url: libraryEntry.book.cover_url,
+            pages: libraryEntry.book.pages,
+            rating: libraryEntry.book.rating,
+            price: libraryEntry.book.price,
+            is_free: libraryEntry.book.is_free,
+            content_source: libraryEntry.book.content_source
+          },
+          reading_progress: libraryEntry.user_reading_progress || 0,
+          last_read: libraryEntry.last_read,
+          purchase_date: libraryEntry.purchase_date
+        }));
+        
         // Sort by last_read date, most recent first
-        const sortedHistory = userBooks
+        const sortedHistory = flattenedBooks
           .filter(book => book.last_read) // Only include books that have been read
           .sort((a, b) => new Date(b.last_read) - new Date(a.last_read));
         

@@ -44,6 +44,7 @@ class UserSerializer(Serializer):
 @method_decorator(csrf_exempt, name='dispatch')
 class DjangoLoginView(APIView):
     permission_classes = [AllowAny]
+    authentication_classes = []  # Disable DRF auth to prevent CSRF check
     
     def post(self, request):
         """Django login endpoint"""

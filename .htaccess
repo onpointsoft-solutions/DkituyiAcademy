@@ -1,0 +1,149 @@
+# Frontend React .htaccess Configuration
+# Optimized for ebooks.dkituyi.org with backend at /backend/
+
+# Enable rewrite engine
+RewriteEngine On
+
+# ============================================
+# 1. SERVE MEDIA FILES DIRECTLY (Apache handles these)
+# ============================================
+# Serve /backend/media/* files directly without routing to Django
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^backend/media/(.*)$ backend/media/$1 [L]
+
+# Security headers
+<IfModule mod_headers.c>
+    # CORS headers
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+    Header always set Access-Control-Allow-Headers "Content-Type, Authorization"
+    
+    # Security headers
+    Header always set X-Frame-Options "DENY"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+    
+    # CORS for media files (PDFs, images)
+    <FilesMatch "\.(pdf|jpg|jpeg|png|gif|webp|svg)$">
+        Header set Access-Control-Allow-Origin "*"
+        Header set Access-Control-Allow-Methods "GET, OPTIONS"
+    </FilesMatch>
+</IfModule>
+
+# Handle preflight OPTIONS requests for backend API
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^backend/api/(.*)$ - [R=200,L]
+
+# ===================================================================
+# 2. BACKEND API ROUTING (Route to Django)
+# ===================================================================
+
+# Route /backend/api/* to Django passenger_wsgi.py
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^backend/api/(.*)$ backend/passenger_wsgi.py/api/$1 [QSA,L]
+
+# Route /backend/admin/* to Django
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^backend/admin/(.*)$ backend/passenger_wsgi.py/admin/$1 [QSA,L]
+
+# Route /backend/superadmin/* to Django
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^backend/superadmin/(.*)$ backend/passenger_wsgi.py/superadmin/$1 [QSA,L]
+
+# Route /backend/payment/* to Django
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^backend/payment/(.*)$ backend/passenger_wsgi.py/payment/$1 [QSA,L]
+
+# ===================================================================
+# 3. STATIC FILES SERVING
+# ===================================================================
+
+# Serve static files directly if they exist
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# ===================================================================
+# 4. REACT SPA ROUTING - FALLBACK TO INDEX.HTML
+# ===================================================================
+
+# Fallback all other routes to index.html for React Router
+# EXCLUDE: backend API, wp-json, and static assets
+RewriteCond %{REQUEST_URI} !^/backend/
+RewriteCond %{REQUEST_URI} !^wp-json/
+RewriteCond %{REQUEST_URI} !\.(css|js|png|jpg|jpeg|gif|webp|svg|ico|woff|woff2|pdf|map|json)$
+RewriteRule ^(.*)$ /frontend/index.html [QSA,L]
+
+# ===================================================================
+# CACHING CONFIGURATION
+# ===================================================================
+
+<IfModule mod_expires.c>
+    ExpiresActive On
+    
+    # Backend API endpoints - no caching
+    <FilesMatch "^backend/api/">
+        ExpiresActive Off
+        Header unset Cache-Control
+        Header set Cache-Control "no-store, no-cache, must-revalidate"
+        Header set Pragma "no-cache"
+    </FilesMatch>
+    
+    # Static assets - long caching
+    <FilesMatch "\.(css|js|png|jpg|jpeg|gif|webp|svg|ico|woff|woff2)$">
+        ExpiresByType text/css "access plus 1 year"
+        ExpiresByType application/javascript "access plus 1 year"
+        ExpiresByType application/x-javascript "access plus 1 year"
+        ExpiresByType image/png "access plus 1 year"
+        ExpiresByType image/jpg "access plus 1 year"
+        ExpiresByType image/jpeg "access plus 1 year"
+        ExpiresByType image/gif "access plus 1 year"
+        ExpiresByType image/webp "access plus 1 year"
+        ExpiresByType image/svg+xml "access plus 1 year"
+        ExpiresByType image/x-icon "access plus 1 year"
+        ExpiresByType font/woff "access plus 1 year"
+        ExpiresByType font/woff2 "access plus 1 year"
+        ExpiresByType application/font-woff "access plus 1 year"
+        ExpiresByType application/font-woff2 "access plus 1 year"
+    </FilesMatch>
+</IfModule>
+
+# Error pages
+ErrorDocument 404 /index.html
+
+# Block access to sensitive files
+<Files ~ "^\.">
+    Order allow,deny
+    Deny from all
+</Files>
+
+<FilesMatch "\.(env|log|map)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Disable directory listing
+Options -Indexes
+
+# Set default character encoding
+AddDefaultCharset UTF-8
+
+# MIME types
+<IfModule mod_mime.c>
+    AddType application/manifest+json .webmanifest
+    AddType application/x-web-app-manifest+json .webmanifest
+    AddType application/javascript .js
+    AddType application/font-woff .woff
+    AddType application/font-woff2 .woff2
+    AddType image/webp .webp
+    AddType image/svg+xml .svg
+    AddType text/cache-manifest .cache
+    AddType text/x-component .htc
+</IfModule>

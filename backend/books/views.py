@@ -27,19 +27,15 @@ class IsJWTAuthenticated(BasePermission):
     Custom permission class that works with JWT middleware
     """
     def has_permission(self, request, view):
-        print(f"DEBUG: IsJWTAuthenticated.has_permission called for {request.path}")
-        print(f"DEBUG: hasattr(request, 'user_payload'): {hasattr(request, 'user_payload')}")
-        print(f"DEBUG: request.user_payload: {getattr(request, 'user_payload', None)}")
+        logger.debug(f"IsJWTAuthenticated.has_permission called for {request.path}")
         
         # Check if JWT middleware has set user_payload
         if hasattr(request, 'user_payload') and request.user_payload:
-            print(f"DEBUG: JWT authentication passed")
             return True
         
         # Fallback to standard Django authentication
         has_user = hasattr(request, 'user')
         is_auth = has_user and hasattr(request.user, 'is_authenticated') and request.user.is_authenticated
-        print(f"DEBUG: Django authentication - has_user: {has_user}, is_auth: {is_auth}")
         
         return is_auth
 
@@ -109,27 +105,24 @@ class BookViewSet(viewsets.ModelViewSet):
     
     def create(self, request, *args, **kwargs):
         """Create a new book instance."""
-        print(f"DEBUG: BookViewSet.create called")
-        print(f"DEBUG: Request data: {request.data}")
-        print(f"DEBUG: Request files: {request.FILES}")
+        logger.debug(f"BookViewSet.create called")
+        logger.debug(f"Request data: {request.data}")
+        logger.debug(f"Request files: {request.FILES}")
         
         serializer = self.get_serializer(data=request.data)
-        print(f"DEBUG: Serializer created: {serializer.__class__.__name__}")
-        print(f"DEBUG: Serializer is_valid: {serializer.is_valid()}")
+        logger.debug(f"Serializer created: {serializer.__class__.__name__}")
+        is_valid = serializer.is_valid()
+        logger.debug(f"Serializer is_valid: {is_valid}")
         
-        if not serializer.is_valid():
-            print(f"DEBUG: Serializer errors: {serializer.errors}")
-            from rest_framework.response import Response
-            from rest_framework import status
+        if not is_valid:
+            logger.warning(f"Serializer errors: {serializer.errors}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
-        print(f"DEBUG: Serializer validated, calling save()")
+        logger.debug("Serializer validated, calling save()")
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         
-        print(f"DEBUG: Book created successfully, returning response")
-        from rest_framework.response import Response
-        from rest_framework import status
+        logger.info(f"Book created successfully: {serializer.data.get('title', 'Unknown')}")
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
     
     @action(detail=True, methods=['get'])
@@ -360,10 +353,13 @@ class PDFStreamingView(APIView):
                             'Content-Range': f'bytes {start}-{end}/{file_size}',
                             'Accept-Ranges': 'bytes',
                             'Content-Length': str(len(data)),
-                            'Cache-Control': 'public, max-age=3600',  # Cache for 1 hour
+                            'Cache-Control': 'public, max-age=3600',
                             'Content-Disposition': f'inline; filename="{smart_str(book.title)}.pdf"',
                             'X-Content-Type-Options': 'nosniff',
-                            'X-Frame-Options': 'SAMEORIGIN',  # Prevent embedding in other sites
+                            'X-Frame-Options': 'SAMEORIGIN',
+                            'Access-Control-Allow-Origin': '*',
+                            'Access-Control-Allow-Methods': 'GET, OPTIONS',
+                            'Access-Control-Allow-Headers': 'Range, Authorization',
                         }
                     )
                     
@@ -387,10 +383,13 @@ class PDFStreamingView(APIView):
                 headers={
                     'Content-Length': str(file_size),
                     'Accept-Ranges': 'bytes',
-                    'Cache-Control': 'public, max-age=3600',  # Cache for 1 hour
+                    'Cache-Control': 'public, max-age=3600',
                     'Content-Disposition': f'inline; filename="{smart_str(book.title)}.pdf"',
                     'X-Content-Type-Options': 'nosniff',
-                    'X-Frame-Options': 'SAMEORIGIN',  # Prevent embedding in other sites
+                    'X-Frame-Options': 'SAMEORIGIN',
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+                    'Access-Control-Allow-Headers': 'Range, Authorization',
                 }
             )
             
@@ -464,18 +463,24 @@ def test_public_books(request):
     print(f"just DEBUG: Request user_payload: {getattr(request, 'user_payload', 'No user_payload')}")
     
     from .models import Book
-    books = Book.objects.all()[:5]  # Limit to 5 for testing
+    books = Book.objects.all()  # Remove limit to get all books
     data = []
     for book in books:
         data.append({
             'id': book.id,
             'title': book.title,
             'author_name': book.author.name if book.author else 'Unknown',
-            'price': book.price,
+            'price': float(book.price),
             'is_free': book.is_free,
             'pages': book.pages,
+            'cover_url': book.cover_display_url,  # Use the property that handles both cover_image and cover_url
+            'cover_display_url': book.cover_display_url,  # Add both fields for compatibility
+            'description': book.description if book.description else '',
+            'isbn': book.isbn if book.isbn else '',
+            'publication_date': book.publication_date.isoformat() if book.publication_date else None,
         })
     
+    print(f"just DEBUG: Returning {len(data)} books with cover URLs")
     return Response(data)
 
 

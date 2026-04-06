@@ -28,15 +28,19 @@ def get_user_from_jwt(request):
 @api_view(['POST'])
 @permission_classes([])
 def unlock_page(request):
-    """Unlock a specific page of a book"""
+    """Unlock a specific page of a book with sequential reading validation"""
     book_id     = request.data.get('book_id')
     page_number = request.data.get('page_number')
-    #user_id=request.data.get('user_id')
-    print(f"just  DEBUG: Unlock request - user_id: {getattr(request, 'user_payload', {}).get('user_id')}, book_id: {book_id}, page_number: {page_number}")
     
-    # TEMPORARILY DISABLE AUTH FOR TESTING
-    # user = get_user_from_jwt(request)
-    user = User.objects.get(id=3)  # Hardcoded user for testing
+    # Get user from JWT payload
+    user_payload = getattr(request, 'user_payload', {})
+    user_id = user_payload.get('user_id')
+    print(f"DEBUG: Unlock request - user_id: {user_id}, book_id: {book_id}, page_number: {page_number}")
+    
+    # Get the authenticated user
+    user = get_user_from_jwt(request)
+    if not user:
+        return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
     
     if not book_id or page_number is None:
         return Response(
@@ -73,6 +77,23 @@ def unlock_page(request):
     if UnlockedPage.objects.filter(user_id=user.id, book=book, page_number=page_number).exists():
         print("just  DEBUG: Page already unlocked")
         return Response({'error': 'Page already unlocked'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # NEW: Sequential reading validation - check if previous page is completed
+    if page_number > 1:
+        previous_page = page_number - 1
+        previous_progress = ReadingProgress.objects.filter(
+            user_id=user.id, 
+            book=book,
+            current_page=previous_page,
+            is_completed=True
+        ).first()
+        
+        if not previous_progress:
+            return Response({
+                'error': f'You must complete page {previous_page} before unlocking page {page_number}',
+                'requires_completion': True,
+                'previous_page': previous_page
+            }, status=status.HTTP_400_BAD_REQUEST)
 
     wallet, _ = Wallet.objects.get_or_create(user_id=user.id)
     print(f"just  DEBUG: Wallet: {wallet.balance} coins")
@@ -117,12 +138,68 @@ def unlock_page(request):
     })
 
 
+@api_view(['POST'])
+@permission_classes([])
+def mark_page_completed(request):
+    """Mark a page as completed and update reading progress"""
+    user = get_user_from_jwt(request)
+    if not user:
+        return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    book_id = request.data.get('book_id')
+    page_number = request.data.get('page_number')
+
+    if not book_id or page_number is None:
+        return Response({'error': 'book_id and page_number are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        book = Book.objects.get(id=book_id)
+    except Book.DoesNotExist:
+        return Response({'error': 'Book not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    # Check if user has access to this book
+    library_entry = UserLibrary.objects.filter(user_id=user.id, book=book).first()
+    if not book.is_free and not library_entry:
+        return Response({'error': 'Access denied'}, status=status.HTTP_403_FORBIDDEN)
+
+    # Check if page is unlocked
+    if not UnlockedPage.objects.filter(user_id=user.id, book=book, page_number=page_number).exists():
+        return Response({'error': 'Page must be unlocked before marking as completed'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Update or create reading progress
+    progress, created = ReadingProgress.objects.get_or_create(
+        user_id=user.id, 
+        book=book,
+        defaults={'current_page': page_number, 'total_pages': book.pages}
+    )
+    
+    # Mark the current page as completed
+    progress.current_page = page_number
+    progress.total_pages = book.pages
+    progress.is_completed = True
+    progress.last_read = timezone.now()
+    progress.save()
+
+    return Response({
+        'message': f'Page {page_number} marked as completed',
+        'progress': {
+            'current_page': progress.current_page,
+            'total_pages': progress.total_pages,
+            'progress_percentage': progress.progress_percentage,
+            'is_completed': progress.is_completed,
+            'last_read': progress.last_read
+        }
+    })
+
+
 @api_view(['GET'])
 @permission_classes([])
 def get_unlocked_pages(request, book_id):
     user = get_user_from_jwt(request)
     if not user:
         return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+    
+    print(f"DEBUG: Getting unlocked pages for user_id: {user.id}, book_id: {book_id}")
 
     try:
         book = Book.objects.get(id=book_id)
@@ -284,6 +361,29 @@ def delete_bookmark(request, bookmark_id):
 
 class ReaderViewSet(viewsets.GenericViewSet):
     permission_classes = [IsAuthenticated]
+
+    def list(self, request):
+        """Get all reading progress for the authenticated user"""
+        user_id = request.user_payload.get('user_id')
+        if not user_id:
+            return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        try:
+            progress_records = ReadingProgress.objects.filter(user_id=user_id).select_related('book')
+            return Response([{
+                'id': progress.id,
+                'book_id': progress.book.id,
+                'book_title': progress.book.title,
+                'author_name': progress.book.author.name if progress.book.author else 'Unknown Author',
+                'current_page': progress.current_page,
+                'total_pages': progress.total_pages,
+                'progress_percentage': progress.progress_percentage,
+                'is_completed': progress.is_completed,
+                'last_read': progress.last_read,
+                'reading_time_minutes': progress.reading_time_minutes
+            } for progress in progress_records])
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['post'])
     def progress(self, request):

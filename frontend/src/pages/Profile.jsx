@@ -25,26 +25,38 @@ export default function Profile() {
       // Get user from localStorage as fallback
       const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
       
-      const [statsResponse, libraryResponse] = await Promise.all([
+      const [statsResponse, libraryResponse, progressResponse] = await Promise.all([
         api.get('/api/library/user/stats/'),
-        api.get('/api/library/user/library/')
+        api.get('/api/library/user/library/'),
+        api.get('/api/reader/progress/')  // Fetch detailed reading progress
       ]);
 
       console.log('🔍 DEBUG: Stats response:', statsResponse.data);
       console.log('🔍 DEBUG: Library response:', libraryResponse.data);
+      console.log('🔍 DEBUG: Progress response:', progressResponse.data);
 
       const stats = statsResponse.data || {};
       const books = libraryResponse.data?.results || [];
+      const progressData = progressResponse.data || [];
       
-      // Transform user stats
+      // Calculate enhanced progress metrics
+      const totalBooksRead = progressData.filter(p => p.is_completed).length;
+      const totalPagesRead = progressData.reduce((sum, p) => sum + (p.current_page || 0), 0);
+      const avgProgress = progressData.length > 0 
+        ? progressData.reduce((sum, p) => sum + (p.progress_percentage || 0), 0) / progressData.length 
+        : 0;
+      
+      // Transform user stats with enhanced data
       const transformedStats = {
         totalBooks: stats.totalBooks || 0,
-        booksRead: stats.booksRead || 0,
+        booksRead: totalBooksRead,
         readingTime: stats.readingTimeHours || 0,
         readingStreak: stats.readingStreak || 0,
         achievements: stats.achievements || 0,
         libraryBooks: books.length,
-        pagesRead: stats.pagesRead || 0
+        pagesRead: totalPagesRead,
+        avgProgress: Math.round(avgProgress),
+        inProgress: progressData.filter(p => !p.is_completed && p.progress_percentage > 0).length
       };
 
       setUserStats(transformedStats);
@@ -175,10 +187,82 @@ export default function Profile() {
         />
         <StatCard 
           icon={BookOpen} 
-          label="Pages Read" 
-          value={userStats?.pagesRead || 0} 
-          color="bg-teal-500" 
+          label="In Progress" 
+          value={userStats?.inProgress || 0} 
+          color="bg-orange-500" 
         />
+      </div>
+
+      {/* Enhanced Progress Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-cream-200">
+          <h3 className="text-lg font-semibold text-ink-900 mb-4 flex items-center gap-2">
+            <BookOpen size={20} className="text-accent" />
+            Reading Progress
+          </h3>
+          <div className="space-y-3">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm text-ink-600">Average Progress</span>
+                <span className="text-sm font-medium text-ink-900">{userStats?.avgProgress || 0}%</span>
+              </div>
+              <div className="h-2 bg-cream-200 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-accent to-accent-hover rounded-full transition-all duration-500"
+                  style={{ width: `${userStats?.avgProgress || 0}%` }}
+                />
+              </div>
+            </div>
+            <div className="pt-2 border-t border-cream-200">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-ink-600">Pages Read</span>
+                <span className="font-medium text-ink-900">{userStats?.pagesRead || 0}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-cream-200">
+          <h3 className="text-lg font-semibold text-ink-900 mb-4 flex items-center gap-2">
+            <TrendingUp size={20} className="text-green-500" />
+            Reading Activity
+          </h3>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-ink-600">Completed</span>
+              <span className="text-sm font-medium text-green-600">{userStats?.booksRead || 0} books</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-ink-600">In Progress</span>
+              <span className="text-sm font-medium text-orange-600">{userStats?.inProgress || 0} books</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-ink-600">Total Library</span>
+              <span className="text-sm font-medium text-ink-900">{userStats?.libraryBooks || 0} books</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-cream-200">
+          <h3 className="text-lg font-semibold text-ink-900 mb-4 flex items-center gap-2">
+            <Award size={20} className="text-purple-500" />
+            Reading Stats
+          </h3>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-ink-600">Reading Streak</span>
+              <span className="text-sm font-medium text-ink-900">{userStats?.readingStreak || 0} days</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-ink-600">Reading Time</span>
+              <span className="text-sm font-medium text-ink-900">{userStats?.readingTime || 0} hours</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-ink-600">Achievements</span>
+              <span className="text-sm font-medium text-ink-900">{userStats?.achievements || 0}</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Two Column Layout */}

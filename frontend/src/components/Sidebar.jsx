@@ -26,10 +26,9 @@ export default function Sidebar({ isOpen, toggleSidebar }) {
   const menuItems = [
     { path: '/dashboard', icon: Home, label: 'Home' },
     { path: '/library', icon: Library, label: 'My Library' },
-    { path: '/books', icon: BookOpen, label: 'Books' },
+    { path: '/books', icon: BookOpen, label: 'Catalog' },
     { path: '/wallet', icon: WalletIcon, label: 'Wallet' },
     { path: '/history', icon: History, label: 'Reading History' },
-    {path: '/admin',icon:Shield,label:'Admin Dashboard'},
     { path: '/profile', icon: User, label: 'Profile' },
   ];
 

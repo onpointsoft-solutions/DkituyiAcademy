@@ -1,6 +1,11 @@
 import os
 from pathlib import Path
 from decouple import config
+import pymysql
+
+# Install PyMySQL as the MySQL driver and fix version for Django
+pymysql.install_as_MySQLdb()
+pymysql.version_info = (2, 2, 1, 'final', 0)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -123,7 +128,7 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-MEDIA_URL = '/media/'
+MEDIA_URL = '/backend/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Default primary key field type

@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import SimpleRouter
-from .views import ReaderViewSet, unlock_page, get_unlocked_pages, create_note, get_notes, delete_note, create_bookmark, get_bookmarks, delete_bookmark
+from .views import ReaderViewSet, unlock_page, get_unlocked_pages, create_note, get_notes, delete_note, create_bookmark, get_bookmarks, delete_bookmark, mark_page_completed
 from .annotation_views import ReadingFeaturesViewSet
 from .simple_views import SimpleReaderViewSet
 from .pdf_reader_views import PDFReaderViewSet
@@ -13,6 +13,7 @@ urlpatterns = [
     # Page unlocking endpoints
     path('features/unlock_page/', unlock_page, name='unlock_page'),
     path('features/unlocked_pages/<int:book_id>/', get_unlocked_pages, name='get_unlocked_pages'),
+    path('features/mark_completed/', mark_page_completed, name='mark_page_completed'),
     
     # Notes endpoints
     path('features/notes/', create_note, name='create_note'),

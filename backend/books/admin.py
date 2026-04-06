@@ -111,7 +111,8 @@ class BookAdmin(admin.ModelAdmin):
     
     def total_pages(self, obj):
         if obj.content_source == 'manual':
-            return obj.chapters.aggregate(total=models.Sum('pages_count'))['pages_count__sum'] or 0
+            result = obj.chapters.aggregate(total=models.Sum('pages_count'))
+            return result['total'] or 0
         return obj.pages
     total_pages.short_description = 'Total Pages'
     

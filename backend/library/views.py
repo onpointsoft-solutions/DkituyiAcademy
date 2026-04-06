@@ -111,8 +111,39 @@ class UserLibraryViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user_id = get_jwt_user_id(self.request)
         if not user_id:
+            print(f"DEBUG: No user_id found in request")
             return UserLibrary.objects.none()
-        return UserLibrary.objects.filter(user_id=user_id, is_active=True)
+        
+        print(f"DEBUG: Getting library for user_id: {user_id}")
+        try:
+            queryset = UserLibrary.objects.filter(user_id=user_id, is_active=True)
+            print(f"DEBUG: Found {queryset.count()} library entries for user {user_id}")
+            return queryset
+        except Exception as e:
+            print(f"DEBUG: Error in get_queryset: {str(e)}")
+            return UserLibrary.objects.none()
+    
+    def get_serializer_context(self):
+        """Ensure request context is passed to serializer for reading progress"""
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+    
+    def list(self, request, *args, **kwargs):
+        """Override list method to add error handling"""
+        try:
+            print(f"DEBUG: UserLibraryViewSet.list called")
+            response = super().list(request, *args, **kwargs)
+            print(f"DEBUG: Library list response: {response.data}")
+            return response
+        except Exception as e:
+            print(f"DEBUG: Error in UserLibraryViewSet.list: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'error': 'Failed to fetch library data', 'detail': str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
     def create(self, request, *args, **kwargs):
         """

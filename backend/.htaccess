@@ -1,120 +1,119 @@
-# Backend Django .htaccess Configuration
-# Place this in /home/vincent/Projects/bookreader/backend/.htaccess
+# ebooks.dkituyiacademy.org — Backend .htaccess
+# Location: /home/viyykxmm/public_html/backend/.htaccess
 
-# Enable rewrite engine
-RewriteEngine On
+# ─── Passenger ───────────────────────────────────────────────────────────────
+# Must be at root level, NEVER inside any <IfModule> block
+PassengerEnabled on
+PassengerAppRoot /home/viyykxmm/ebook
+PassengerBaseURI /backend
 
-# Security headers
+# ─── Aliases ─────────────────────────────────────────────────────────────────
+# NOTE: Alias doesn't work in .htaccess on most cPanel setups
+# Using RewriteRule instead for cPanel compatibility
+
+# ─── Security + CORS headers ─────────────────────────────────────────────────
 <IfModule mod_headers.c>
-    # CORS headers for API access
-    Header always set Access-Control-Allow-Origin "http://localhost:3000"
-    Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-    Header always set Access-Control-Allow-Headers "Content-Type, Authorization"
+    # API CORS — specific origin, credentials allowed
+    Header always set Access-Control-Allow-Origin "https://ebooks.dkituyiacademy.org"
+    Header always set Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+    Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-CSRFToken, X-Requested-With, Range"
     Header always set Access-Control-Allow-Credentials "true"
-    
+    # Range/Content-Range needed for PDF.js partial loading
+    Header always set Access-Control-Expose-Headers "Content-Range, Content-Length, Accept-Ranges"
+
+    # Media files — wildcard origin is fine here (no credentials)
+    <FilesMatch "\.(pdf|jpg|jpeg|png|gif|webp|svg)$">
+        Header set Access-Control-Allow-Origin "*"
+        Header set Access-Control-Expose-Headers "Content-Range, Content-Length, Accept-Ranges"
+        # PDFs must display inline, not download, for PDF.js
+        Header set Content-Disposition "inline"
+        Header set Accept-Ranges "bytes"
+    </FilesMatch>
+
     # Security headers
-    Header always set X-Frame-Options "DENY"
+    Header always set X-Frame-Options "SAMEORIGIN"
     Header always set X-Content-Type-Options "nosniff"
     Header always set X-XSS-Protection "1; mode=block"
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
-    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://dkituyiacademy.org"
 </IfModule>
 
-# Handle preflight OPTIONS requests
-RewriteCond %{REQUEST_METHOD} OPTIONS
-RewriteRule ^(.*)$ [R=200,L]
+# ─── Rewrite rules ────────────────────────────────────────────────────────────
+RewriteEngine On
 
-# Django API routing
+# 1. Handle OPTIONS preflight with proper CORS headers
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^(.*)$ $1 [R=200,L,E=HTTP_ORIGIN:%{HTTP:Origin}]
+
+# Set CORS headers for OPTIONS response
+Header always set Access-Control-Allow-Origin "https://ebooks.dkituyiacademy.org" env=HTTP_ORIGIN
+Header always set Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS" env=HTTP_ORIGIN
+Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-CSRFToken, X-Requested-With, Range" env=HTTP_ORIGIN
+Header always set Access-Control-Allow-Credentials "true" env=HTTP_ORIGIN
+Header always set Access-Control-Max-Age "86400" env=HTTP_ORIGIN
+
+# Also set CORS headers unconditionally for API endpoints
+<IfModule mod_headers.c>
+    <LocationMatch "^/backend/api/">
+        Header always set Access-Control-Allow-Origin "https://ebooks.dkituyiacademy.org"
+        Header always set Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+        Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-CSRFToken, X-Requested-With, Range"
+        Header always set Access-Control-Allow-Credentials "true"
+        Header always set Access-Control-Expose-Headers "Content-Range, Content-Length, Accept-Ranges"
+    </LocationMatch>
+</IfModule>
+
+# 2. Route everything under /backend/ to Passenger → Django
+#    Django will serve media files via urls.py
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^api/(.*)$ /backend/$1 [QSA,L]
+RewriteRule ^backend/(.*)$ passenger_wsgi.py [QSA,L]
 
-# WordPress JWT proxy (optional - if you want to proxy through Django)
-RewriteCond %{REQUEST_URI} ^/wp-json/jwt-auth/v1/token
-RewriteRule ^(.*)$ https://dkituyiacademy.org/$1 [P,L]
-
-# Media files serving
+# ─── MIME types ───────────────────────────────────────────────────────────────
 <IfModule mod_mime.c>
-    # PDF files
-    AddType application/pdf .pdf
-    # Image files
-    AddType image/jpeg .jpg .jpeg
-    AddType image/png .png
-    AddType image/gif .gif
-    AddType image/webp .webp
-    AddType image/svg+xml .svg
+    AddType application/pdf      .pdf
+    AddType image/jpeg           .jpg .jpeg
+    AddType image/png            .png
+    AddType image/gif            .gif
+    AddType image/webp           .webp
+    AddType image/svg+xml        .svg
+    AddType application/json     .json
+    AddType font/woff2           .woff2
 </IfModule>
 
-# Gzip compression
+# ─── Compression ──────────────────────────────────────────────────────────────
 <IfModule mod_deflate.c>
-    AddOutputFilterByType DEFLATE text/plain
-    AddOutputFilterByType DEFLATE text/html
-    AddOutputFilterByType DEFLATE text/xml
-    AddOutputFilterByType DEFLATE text/css
-    AddOutputFilterByType DEFLATE application/xml
-    AddOutputFilterByType DEFLATE application/xhtml+xml
+    AddOutputFilterByType DEFLATE text/plain text/html text/xml text/css
+    AddOutputFilterByType DEFLATE application/xml application/xhtml+xml
     AddOutputFilterByType DEFLATE application/rss+xml
-    AddOutputFilterByType DEFLATE application/javascript
-    AddOutputFilterByType DEFLATE application/x-javascript
+    AddOutputFilterByType DEFLATE application/javascript application/x-javascript
     AddOutputFilterByType DEFLATE application/json
 </IfModule>
 
-# Cache control for static files
+# ─── Cache control ────────────────────────────────────────────────────────────
 <IfModule mod_expires.c>
     ExpiresActive On
-    ExpiresByType text/css "access plus 1 year"
-    ExpiresByType application/javascript "access plus 1 year"
-    ExpiresByType image/png "access plus 1 year"
-    ExpiresByType image/jpg "access plus 1 year"
-    ExpiresByType image/jpeg "access plus 1 year"
-    ExpiresByType image/gif "access plus 1 year"
-    ExpiresByType image/webp "access plus 1 year"
-    ExpiresByType image/svg+xml "access plus 1 year"
-    ExpiresByType application/pdf "access plus 1 month"
-    ExpiresByType font/woff "access plus 1 year"
-    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType text/css                  "access plus 1 year"
+    ExpiresByType application/javascript    "access plus 1 year"
+    ExpiresByType image/png                 "access plus 1 year"
+    ExpiresByType image/jpeg                "access plus 1 year"
+    ExpiresByType image/gif                 "access plus 1 year"
+    ExpiresByType image/webp                "access plus 1 year"
+    ExpiresByType image/svg+xml             "access plus 1 year"
+    # PDFs change more often than static assets
+    ExpiresByType application/pdf           "access plus 1 month"
 </IfModule>
 
-# Error handling
+# ─── Block sensitive files ────────────────────────────────────────────────────
+<Files ~ "^\.">
+    Require all denied
+</Files>
+
+<FilesMatch "\.(env|log|pyc|pyo|py|ini|cfg|conf)$">
+    Require all denied
+</FilesMatch>
+
+# ─── Error pages ──────────────────────────────────────────────────────────────
 ErrorDocument 401 /backend/error-pages/401.html
 ErrorDocument 403 /backend/error-pages/403.html
 ErrorDocument 404 /backend/error-pages/404.html
 ErrorDocument 500 /backend/error-pages/500.html
-
-# PHP settings (if PHP is used)
-<IfModule mod_php7.c>
-    php_flag display_errors Off
-    php_flag log_errors On
-    php_value error_log /var/log/django-backend-errors.log
-    php_value max_execution_time 300
-    php_value memory_limit 256M
-    php_value upload_max_filesize 50M
-    php_value post_max_size 50M
-</IfModule>
-
-<IfModule mod_php8.c>
-    php_flag display_errors Off
-    php_flag log_errors On
-    php_value error_log /var/log/django-backend-errors.log
-    php_value max_execution_time 300
-    php_value memory_limit 256M
-    php_value upload_max_filesize 50M
-    php_value post_max_size 50M
-</IfModule>
-
-# Block access to sensitive files
-<Files ~ "^\.">
-    Order allow,deny
-    Deny from all
-</Files>
-
-<FilesMatch "\.(env|log|pyc|pyo|py)$">
-    Order allow,deny
-    Deny from all
-</FilesMatch>
-
-<IfModule mod_authz_core.c>
-    <Directory /home/vincent/Projects/bookreader/backend>
-        Require all granted
-    </Directory>
-</IfModule>

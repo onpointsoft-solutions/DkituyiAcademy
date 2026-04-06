@@ -17,7 +17,7 @@ class Bookmark(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        unique_together = ['user_id', 'book', 'page_number', 'position']
+        unique_together = ['user_id', 'book', 'page_number']
         ordering = ['page_number']
     
     def __str__(self):

@@ -22,13 +22,17 @@ export default function Dashboard() {
       setLoading(true);
       console.log('🔍 DEBUG: Fetching dashboard data...');
       
-      const [statsResponse, booksResponse, walletResponse, profileResponse] = await Promise.all([
+      const [statsResponse, booksResponse, walletResponse, profileResponse, progressResponse] = await Promise.all([
         api.get('/api/library/user/stats/'),
         api.get('/api/library/user/recent-books/'),
         api.get('/api/payments/wallet/'),
         api.get('/api/user/profile/').catch(err => {
           console.log('🔍 DEBUG: Profile API not available, using fallback');
           return null;
+        }),
+        api.get('/api/reader/progress/').catch(err => {
+          console.log('🔍 DEBUG: Progress API not available, using fallback');
+          return { data: [] };
         })
       ]);
 
@@ -36,10 +40,20 @@ export default function Dashboard() {
       console.log('🔍 DEBUG: Books response:', booksResponse.data);
       console.log('🔍 DEBUG: Wallet response:', walletResponse.data);
       console.log('🔍 DEBUG: Profile response:', profileResponse?.data);
+      console.log('🔍 DEBUG: Progress response:', progressResponse.data);
 
       // Only use real data from backend - no dummy values
       const stats = statsResponse.data || {};
       const books = booksResponse.data?.results || [];
+      const progressData = progressResponse.data || [];
+      
+      // Calculate enhanced progress metrics
+      const totalBooksRead = progressData.filter(p => p.is_completed).length;
+      const totalPagesRead = progressData.reduce((sum, p) => sum + (p.current_page || 0), 0);
+      const inProgressBooks = progressData.filter(p => !p.is_completed && p.progress_percentage > 0).length;
+      const avgProgress = progressData.length > 0 
+        ? Math.round(progressData.reduce((sum, p) => sum + (p.progress_percentage || 0), 0) / progressData.length)
+        : 0;
       
       // Be more lenient with stats validation - allow empty stats but still display
       console.log('🔍 DEBUG: Stats data:', stats);
@@ -49,7 +63,7 @@ export default function Dashboard() {
       // Get actual book count from books API if stats doesn't have it
       const actualBookCount = stats.totalBooks || books.length;
       
-      // Transform real stats data with general reading focus
+      // Transform real stats data with enhanced progress tracking
       const transformedStats = [
         {
           label: 'Books in Library',
@@ -59,32 +73,39 @@ export default function Dashboard() {
           iconColor: 'text-accent',
         },
         {
-          label: 'Books Read',
-          value: stats.booksRead?.toString() || '0',
+          label: 'Books Completed',
+          value: totalBooksRead.toString(),
           icon: BookOpen,
-          bg: 'bg-yellow-500/10',
-          iconColor: 'text-yellow-500',
+          bg: 'bg-green-500/10',
+          iconColor: 'text-green-500',
+        },
+        {
+          label: 'In Progress',
+          value: inProgressBooks.toString(),
+          icon: TrendingUp,
+          bg: 'bg-orange-500/10',
+          iconColor: 'text-orange-500',
+        },
+        {
+          label: 'Pages Read',
+          value: totalPagesRead.toString(),
+          icon: BookOpen,
+          bg: 'bg-blue-500/10',
+          iconColor: 'text-blue-500',
+        },
+        {
+          label: 'Avg Progress',
+          value: `${avgProgress}%`,
+          icon: TrendingUp,
+          bg: 'bg-purple-500/10',
+          iconColor: 'text-purple-500',
         },
         {
           label: 'Reading Time',
           value: `${stats.readingTimeHours || 0}h`,
           icon: Clock,
-          bg: 'bg-green-500/10',
-          iconColor: 'text-green-500',
-        },
-        {
-          label: 'Reading Streak',
-          value: `${stats.readingStreak || 0} days`,
-          icon: TrendingUp,
-          bg: 'bg-ink-600/10',
-          iconColor: 'text-ink-600',
-        },
-        {
-          label: 'Achievements',
-          value: stats.achievements?.toString() || '0',
-          icon: Award,
-          bg: 'bg-accent/10',
-          iconColor: 'text-accent',
+          bg: 'bg-yellow-500/10',
+          iconColor: 'text-yellow-500',
         },
       ];
 
@@ -245,7 +266,7 @@ export default function Dashboard() {
               to="/library"
               className="inline-block px-6 py-3 bg-accent text-white rounded-xl hover:bg-accent-hover transition-colors"
             >
-              Explore Books
+              Explore Catalog
             </Link>
           </div>
         </div>
@@ -351,7 +372,7 @@ export default function Dashboard() {
           )}
 
           {/* Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
             {stats.map((stat, i) => {
               const Icon = stat.icon;
               return (
@@ -371,6 +392,103 @@ export default function Dashboard() {
                 </div>
               );
             })}
+          </div>
+
+          {/* Progress Overview */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div className="bg-white rounded-xl border border-cream-300 shadow-book p-6">
+              <h3 className="font-reading text-lg font-semibold text-ink-900 mb-4 flex items-center gap-2">
+                <TrendingUp size={20} className="text-green-500" />
+                Reading Progress Overview
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-ink-600">Books Completed</span>
+                    <span className="text-sm font-medium text-green-600">
+                      {stats.find(s => s.label === 'Books Completed')?.value || '0'}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-cream-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-green-500 rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min((parseInt(stats.find(s => s.label === 'Books Completed')?.value || 0) / Math.max(1, parseInt(stats.find(s => s.label === 'Books in Library')?.value || 1))) * 100, 100)}%` }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-ink-600">In Progress</span>
+                    <span className="text-sm font-medium text-orange-600">
+                      {stats.find(s => s.label === 'In Progress')?.value || '0'}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-cream-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-orange-500 rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min((parseInt(stats.find(s => s.label === 'In Progress')?.value || 0) / Math.max(1, parseInt(stats.find(s => s.label === 'Books in Library')?.value || 1))) * 100, 100)}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="pt-3 border-t border-cream-200">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-ink-600">Average Progress</span>
+                    <span className="font-medium text-ink-900">
+                      {stats.find(s => s.label === 'Avg Progress')?.value || '0%'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm mt-2">
+                    <span className="text-ink-600">Total Pages Read</span>
+                    <span className="font-medium text-ink-900">
+                      {stats.find(s => s.label === 'Pages Read')?.value || '0'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl border border-cream-300 shadow-book p-6">
+              <h3 className="font-reading text-lg font-semibold text-ink-900 mb-4 flex items-center gap-2">
+                <Clock size={20} className="text-blue-500" />
+                Reading Activity
+              </h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center p-3 bg-blue-50 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600 font-reading">
+                      {stats.find(s => s.label === 'Reading Time')?.value || '0h'}
+                    </div>
+                    <div className="text-xs text-blue-600 mt-1">Total Reading Time</div>
+                  </div>
+                  <div className="text-center p-3 bg-purple-50 rounded-lg">
+                    <div className="text-2xl font-bold text-purple-600 font-reading">
+                      {stats.find(s => s.label === 'Avg Progress')?.value || '0%'}
+                    </div>
+                    <div className="text-xs text-purple-600 mt-1">Avg Progress</div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between py-2 border-b border-cream-200">
+                    <span className="text-sm text-ink-600">Books in Library</span>
+                    <span className="text-sm font-medium text-ink-900">
+                      {stats.find(s => s.label === 'Books in Library')?.value || '0'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between py-2 border-b border-cream-200">
+                    <span className="text-sm text-ink-600">Pages Read</span>
+                    <span className="text-sm font-medium text-ink-900">
+                      {stats.find(s => s.label === 'Pages Read')?.value || '0'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-sm text-ink-600">Completed</span>
+                    <span className="text-sm font-medium text-green-600">
+                      {stats.find(s => s.label === 'Books Completed')?.value || '0'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Continue Reading */}
@@ -408,7 +526,7 @@ export default function Dashboard() {
                     to="/library"
                     className="inline-block px-6 py-3 bg-accent text-white rounded-xl hover:bg-accent-hover transition-colors transform hover:scale-[1.02] active:scale-[0.98]"
                   >
-                    Explore Books
+                    Explore Catalog
                   </Link>
                 </div>
               ) : (

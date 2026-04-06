@@ -5,19 +5,20 @@ from books.serializers import BookListSerializer
 
 class UserLibrarySerializer(serializers.ModelSerializer):
     book = BookListSerializer(read_only=True)
-    reading_progress = serializers.SerializerMethodField()
+    user_reading_progress = serializers.SerializerMethodField()
     last_read = serializers.SerializerMethodField()
     
     class Meta:
         model = UserLibrary
         fields = [
             'id', 'book', 'purchase_date', 'access_expires', 'is_active',
-            'reading_progress', 'last_read'
+            'user_reading_progress', 'last_read'
         ]
     
-    def get_reading_progress(self, obj):
+    def get_user_reading_progress(self, obj):
         """Get reading progress for this book"""
         try:
+            # Direct database query to avoid any field conflicts
             progress = ReadingProgress.objects.get(
                 user_id=obj.user_id, 
                 book=obj.book
@@ -25,16 +26,23 @@ class UserLibrarySerializer(serializers.ModelSerializer):
             return progress.progress_percentage
         except ReadingProgress.DoesNotExist:
             return 0.0
+        except Exception as e:
+            print(f"DEBUG: Error getting reading progress: {str(e)}")
+            return 0.0
     
     def get_last_read(self, obj):
         """Get last read date for this book"""
         try:
+            # Direct database query to avoid any field conflicts
             progress = ReadingProgress.objects.get(
                 user_id=obj.user_id, 
                 book=obj.book
             )
             return progress.last_read
         except ReadingProgress.DoesNotExist:
+            return None
+        except Exception as e:
+            print(f"DEBUG: Error getting last_read: {str(e)}")
             return None
 
 

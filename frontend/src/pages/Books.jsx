@@ -20,7 +20,7 @@ const T = {
 };
 
 const FILTERS = [
-  { label: 'All Books',  value: 'all' },
+  { label: 'Catalog',    value: 'all' },
   { label: 'Reading',    value: 'reading' },
   { label: 'Completed',  value: 'completed' },
   { label: 'Unread',     value: 'unread' },

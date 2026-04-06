@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Star, Clock, Filter, Search, Book, Library, Plus } from 'lucide-react';
+import { BookOpen, Star, Clock, Filter, Search, Library, Plus } from 'lucide-react';
 import api from '../api/axiosClient';
 import { useNavigate } from 'react-router-dom';
 
@@ -10,7 +10,6 @@ export default function LibraryPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('all');
-  const [showAllBooks, setShowAllBooks] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -28,41 +27,42 @@ export default function LibraryPage() {
           setIsAdmin(false);
         }
         
-        // Load both user library and all available books
-        const [userLibraryResponse, allBooksResponse] = await Promise.all([
-          api.get('/api/library/user/library/'),  // Use correct library endpoint
-          api.get('/api/books/')  // This should work now with public access
-        ]);
+        // Load only user library books
+        const userLibraryResponse = await api.get('/api/library/user/library/');
         
         console.log('🔍 DEBUG: User library response:', userLibraryResponse.data);
-        console.log('🔍 DEBUG: All books response:', allBooksResponse.data);
         
         const userBooks = userLibraryResponse.data.results || [];
-        const allBooks = allBooksResponse.data.results || [];
+        
+        // Flatten the nested book data for easier frontend consumption
+        const flattenedBooks = userBooks.map(libraryEntry => ({
+          id: libraryEntry.book.id,
+          library_id: libraryEntry.id,
+          title: libraryEntry.book.title,
+          author_name: libraryEntry.book.author_name,
+          cover_display_url: libraryEntry.book.cover_display_url,
+          cover_url: libraryEntry.book.cover_url,
+          pages: libraryEntry.book.pages,
+          rating: libraryEntry.book.rating,
+          price: libraryEntry.book.price,
+          is_free: libraryEntry.book.is_free,
+          reading_progress: libraryEntry.user_reading_progress || 0,
+          last_read: libraryEntry.last_read,
+          purchase_date: libraryEntry.purchase_date,
+          content_source: libraryEntry.book.content_source
+        }));
+        
+        console.log('🔍 DEBUG: Flattened books:', flattenedBooks);
         
         setUserLibrary(userBooks);
-        
-        // Default to showing all books
-        setBooks(allBooks);
-        setShowAllBooks(true);
-        
-        console.log(`🔍 DEBUG: Loaded ${userBooks.length} user books and ${allBooks.length} total books`);
+        setBooks(flattenedBooks);  // Use flattened books for display
         setLoading(false);
       } catch (err) {
         console.error('Failed to fetch library:', err);
         
-        // Try fallback to just all books if user library fails
-        try {
-          console.log('🔍 DEBUG: Trying fallback to all books...');
-          const allBooksResponse = await api.get('/api/books/');
-          const allBooks = allBooksResponse.data.results || [];
-          setBooks(allBooks);
-          setShowAllBooks(true);
-          console.log('🔍 DEBUG: Fallback loaded', allBooks.length, 'books');
-        } catch (fallbackErr) {
-          console.error('Failed to fetch all books:', fallbackErr);
-          setBooks([]);
-        }
+        // Fallback - set empty library if API fails
+        setUserLibrary([]);
+        setBooks([]);
         
         setLoading(false);
       }
@@ -81,20 +81,30 @@ export default function LibraryPage() {
         // Reload data when tab becomes active
         const load = async () => {
           try {
-            const [userLibraryResponse, allBooksResponse] = await Promise.all([
-              api.get('/api/library/user/library/'),  // Use correct library endpoint
-              api.get('/api/books/')
-            ]);
+            const userLibraryResponse = await api.get('/api/library/user/library/');
             
             const userBooks = userLibraryResponse.data.results || [];
-            const allBooks = allBooksResponse.data.results || [];
+            
+            // Flatten the nested book data
+            const flattenedBooks = userBooks.map(libraryEntry => ({
+              id: libraryEntry.book.id,
+              library_id: libraryEntry.id,
+              title: libraryEntry.book.title,
+              author_name: libraryEntry.book.author_name,
+              cover_display_url: libraryEntry.book.cover_display_url,
+              cover_url: libraryEntry.book.cover_url,
+              pages: libraryEntry.book.pages,
+              rating: libraryEntry.book.rating,
+              price: libraryEntry.book.price,
+              is_free: libraryEntry.book.is_free,
+              reading_progress: libraryEntry.user_reading_progress || 0,
+              last_read: libraryEntry.last_read,
+              purchase_date: libraryEntry.purchase_date,
+              content_source: libraryEntry.book.content_source
+            }));
             
             setUserLibrary(userBooks);
-            if (!showAllBooks && userBooks.length > 0) {
-              setBooks(userBooks);
-            } else if (showAllBooks) {
-              setBooks(allBooks);
-            }
+            setBooks(flattenedBooks);
           } catch (err) {
             console.error('Failed to refresh library:', err);
           }
@@ -105,7 +115,7 @@ export default function LibraryPage() {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [showAllBooks]);
+  }, []);
 
   // Listen for reading progress updates from Reader component
   useEffect(() => {
@@ -114,20 +124,30 @@ export default function LibraryPage() {
       // Refresh library data when reading progress is updated
       const refreshLibrary = async () => {
         try {
-          const [userLibraryResponse, allBooksResponse] = await Promise.all([
-            api.get('/api/library/user/library/'),  // Use correct library endpoint
-            api.get('/api/books/')
-          ]);
+          const userLibraryResponse = await api.get('/api/library/user/library/');
           
           const userBooks = userLibraryResponse.data.results || [];
-          const allBooks = allBooksResponse.data.results || [];
+          
+          // Flatten the nested book data
+          const flattenedBooks = userBooks.map(libraryEntry => ({
+            id: libraryEntry.book.id,
+            library_id: libraryEntry.id,
+            title: libraryEntry.book.title,
+            author_name: libraryEntry.book.author_name,
+            cover_display_url: libraryEntry.book.cover_display_url,
+            cover_url: libraryEntry.book.cover_url,
+            pages: libraryEntry.book.pages,
+            rating: libraryEntry.book.rating,
+            price: libraryEntry.book.price,
+            is_free: libraryEntry.book.is_free,
+            reading_progress: libraryEntry.user_reading_progress || 0,
+            last_read: libraryEntry.last_read,
+            purchase_date: libraryEntry.purchase_date,
+            content_source: libraryEntry.book.content_source
+          }));
           
           setUserLibrary(userBooks);
-          if (!showAllBooks && userBooks.length > 0) {
-            setBooks(userBooks);
-          } else if (showAllBooks) {
-            setBooks(allBooks);
-          }
+          setBooks(flattenedBooks);
         } catch (err) {
           console.error('Failed to refresh library on progress update:', err);
         }
@@ -137,91 +157,51 @@ export default function LibraryPage() {
 
     window.addEventListener('readingProgressUpdated', handleReadingProgressUpdate);
     return () => window.removeEventListener('readingProgressUpdated', handleReadingProgressUpdate);
-  }, [showAllBooks]);
+  }, []);
 
-  const addToLibrary = async (bookId) => {
-    try {
-      console.log(`🔍 DEBUG: Adding book ${bookId} to library`);
-      const response = await api.post('/api/library/user/library/', { book_id: bookId });  // Use correct library endpoint
-      
-      // Show success message from backend
-      const message = response.data.message || 'Book added to library successfully';
-      console.log(`🔍 DEBUG: ${message}`);
-      
-      // You could add a toast notification here
-      alert(message); // Simple alert for now, could be replaced with a toast component
-      
-      // Refresh user library
-      const userLibraryResponse = await api.get('/api/library/user/library/');
-      setUserLibrary(userLibraryResponse.data.results || []);
-      
-      // If currently showing user library, update the displayed books
-      if (!showAllBooks) {
-        setBooks(userLibraryResponse.data.results || []);
-      }
-      
-      console.log('🔍 DEBUG: Book added to library successfully');
-    } catch (error) {
-      console.error('Failed to add book to library:', error);
-      const errorMessage = error.response?.data?.error || 'Failed to add book to library';
-      alert(errorMessage); // Simple error alert
-    }
-  };
+  const openReader = (bookId) => navigate(`/reader/${bookId}`);
 
   const removeFromLibrary = async (bookId) => {
     try {
       console.log(`🔍 DEBUG: Removing book ${bookId} from library`);
-      await api.delete(`/api/library/user/library/${bookId}/`);
+      
+      // Find the library entry for this book
+      const book = books.find(b => b.id === bookId);
+      if (!book || !book.library_id) {
+        console.error('Library entry not found for book:', bookId);
+        return;
+      }
+      
+      await api.delete(`/api/library/user/library/${book.library_id}/`);
       
       // Refresh user library
       const userLibraryResponse = await api.get('/api/library/user/library/');
-      setUserLibrary(userLibraryResponse.data.results || []);
+      const userBooks = userLibraryResponse.data.results || [];
       
-      // If currently showing user library, update the displayed books
-      if (!showAllBooks) {
-        setBooks(userLibraryResponse.data.results || []);
-      }
+      // Flatten the nested book data
+      const flattenedBooks = userBooks.map(libraryEntry => ({
+        id: libraryEntry.book.id,
+        library_id: libraryEntry.id,
+        title: libraryEntry.book.title,
+        author_name: libraryEntry.book.author_name,
+        cover_display_url: libraryEntry.book.cover_display_url,
+        cover_url: libraryEntry.book.cover_url,
+        pages: libraryEntry.book.pages,
+        rating: libraryEntry.book.rating,
+        price: libraryEntry.book.price,
+        is_free: libraryEntry.book.is_free,
+        reading_progress: libraryEntry.user_reading_progress || 0,
+        last_read: libraryEntry.last_read,
+        purchase_date: libraryEntry.purchase_date,
+        content_source: libraryEntry.book.content_source
+      }));
+      
+      setUserLibrary(userBooks);
+      setBooks(flattenedBooks);
       
       console.log('🔍 DEBUG: Book removed from library successfully');
     } catch (error) {
       console.error('Failed to remove book from library:', error);
-    }
-  };
-
-  const isInUserLibrary = (bookId) => {
-    return userLibrary.some(book => book.book_id === bookId || book.id === bookId);
-  };
-
-  const toggleLibraryView = () => {
-    const newShowAllBooks = !showAllBooks;
-    setShowAllBooks(newShowAllBooks);
-    
-    if (newShowAllBooks) {
-      // Load all books
-      api.get('/api/books/').then(response => {
-        setBooks(response.data.results || []);
-        console.log('🔍 DEBUG: Switched to all books view');
-      }).catch(err => {
-        console.error('Failed to load all books:', err);
-      });
-    } else {
-      // Show user library
-      setBooks(userLibrary);
-      console.log('🔍 DEBUG: Switched to user library view');
-    }
-  };
-
-  const updateProgress = async (bookId, progress) => {
-    try {
-      await api.post('/api/library/user/reading-progress/', {
-        book_id: bookId,
-        progress: progress
-      });
-      // Refresh library
-      const response = await api.get('/api/library/user/library/');
-      setBooks(response.data.results || []);
-    } catch (error) {
-      console.error('Failed to update reading progress:', error);
     }
   };
 
@@ -236,8 +216,6 @@ export default function LibraryPage() {
       (filter === 'unread' && book.reading_progress === 0);
     return matchSearch && matchFilter;
   });
-
-  const openReader = (bookId) => navigate(`/reader/${bookId}`);
 
   if (loading) {
     return (
@@ -263,17 +241,6 @@ export default function LibraryPage() {
         
         {/* Library Toggle */}
         <div className="flex items-center gap-4 mb-6">
-          <button
-            onClick={toggleLibraryView}
-            className="flex items-center gap-2 px-4 py-2 bg-accent/10 text-accent rounded-xl hover:bg-accent/20 transition-colors"
-          >
-            <Library size={20} />
-            {showAllBooks ? 'My Library' : 'All Books'}
-            <span className="bg-accent/20 px-2 py-1 rounded-lg text-sm">
-              {showAllBooks ? userLibrary.length : books.length}
-            </span>
-          </button>
-          
           {isAdmin && (
             <button
               onClick={() => navigate('/admin')}
@@ -298,7 +265,7 @@ export default function LibraryPage() {
       </div>
 
       {/* Continue Reading Section */}
-      {userLibrary.filter(b => b.reading_progress > 0 && b.reading_progress < 100).length > 0 && (
+      {userLibrary.length > 0 && (
         <div className="mb-8">
           <h2 className="text-lg font-semibold text-ink-900 mb-4 flex items-center gap-2">
             <Clock size={20} className="text-accent" />
@@ -307,7 +274,6 @@ export default function LibraryPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {userLibrary
               .filter(b => b.reading_progress > 0 && b.reading_progress < 100)
-              .slice(0, 4)
               .map((book) => (
                 <article
                   key={`continue-${book.id}`}
@@ -370,7 +336,7 @@ export default function LibraryPage() {
             onChange={(e) => setFilter(e.target.value)}
             className="px-4 py-2.5 bg-cream-50 border border-cream-300 rounded-xl text-ink-700 focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
           >
-            <option value="all">All Books</option>
+            <option value="all">Catalog</option>
             <option value="reading">Currently Reading</option>
             <option value="completed">Completed</option>
             <option value="unread">Unread</option>
@@ -386,20 +352,13 @@ export default function LibraryPage() {
             </div>
           </div>
           <h3 className="font-reading text-xl font-semibold text-ink-900 mb-2">
-            {searchTerm || filter !== 'all' ? 'No matching books found' : 'No books available'}
+            {searchTerm || filter !== 'all' ? 'No matching books found' : 'No books in your library'}
           </h3>
           <p className="text-ink-500 max-w-sm mx-auto mb-6">
             {searchTerm || filter !== 'all'
               ? 'Try adjusting your search or filters to find books.'
-              : 'No books are currently available in the library.'}
+              : 'Visit the Catalog to add books to your library.'}
           </p>
-          
-          {showAllBooks && (
-            <div className="flex items-center justify-center gap-3 mb-6">
-              <Book size={20} className="text-accent" />
-              <span className="text-sm text-ink-600">Literature Collection</span>
-            </div>
-          )}
           
           {searchTerm || filter !== 'all' ? (
             <button
@@ -498,32 +457,20 @@ export default function LibraryPage() {
                 </div>
 
                 <div className="flex gap-2">
-                  {showAllBooks && !isInUserLibrary(book.id) ? (
-                    <button
-                      onClick={() => addToLibrary(book.id)}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 bg-accent text-white rounded-xl font-medium hover:bg-accent-hover transition-colors"
-                    >
-                      <Plus size={18} strokeWidth={2} />
-                      Add to Library
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => openReader(book.id)}
-                      className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-accent text-white rounded-xl font-medium hover:bg-accent-hover transition-colors"
-                    >
-                      <BookOpen size={18} strokeWidth={2} />
-                      {book.reading_progress > 0 ? 'Continue Reading' : 'Start Reading'}
-                    </button>
-                  )}
+                  <button
+                    onClick={() => openReader(book.id)}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-accent text-white rounded-xl font-medium hover:bg-accent-hover transition-colors"
+                  >
+                    <BookOpen size={18} strokeWidth={2} />
+                    Continue Reading
+                  </button>
                   
-                  {showAllBooks && isInUserLibrary(book.id) && (
-                    <button
-                      onClick={() => removeFromLibrary(book.id)}
-                      className="px-3 py-2.5 bg-cream-200 text-ink-600 rounded-xl font-medium hover:bg-cream-300 transition-colors"
-                    >
-                      Remove
-                    </button>
-                  )}
+                  <button
+                    onClick={() => removeFromLibrary(book.id)}
+                    className="px-3 py-2.5 bg-red-100 text-red-700 rounded-xl font-medium hover:bg-red-200 transition-colors"
+                  >
+                    Remove
+                  </button>
                 </div>
               </div>
             </article>
