@@ -25,7 +25,7 @@ const getCSRFToken = () => {
 const getCSRFTokenFromAPI = async () => {
   try {
     const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    const csrfUrl = 'https://ebooks.dkituyiacademy.org/backend/api/auth/csrf/';  // Use production backend with proxy
+    const csrfUrl = 'http://127.0.0.1:8000/api/auth/csrf/';  // Use local backend
     
     const response = await axios.get(csrfUrl, {
       withCredentials: true,
@@ -42,7 +42,7 @@ const getCSRFTokenFromAPI = async () => {
 
 // Django Backend API
 const api = axios.create({
-  baseURL:'https://ebooks.dkituyiacademy.org/backend/',// Production: use production backend
+  baseURL:'http://127.0.0.1:8000/',// Local backend
   timeout: 10000,
   withCredentials: true, // Enable cookies for Django session auth
   headers: {

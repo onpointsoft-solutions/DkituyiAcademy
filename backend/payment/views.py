@@ -14,6 +14,7 @@ from .serializers import PaymentPlanSerializer, PaymentSerializer, BookPurchaseS
 from books.models import Book
 from library.models import UserLibrary
 from core.email import EmailService
+from core.currency import convert_to_kes, convert_from_kes, get_country_currency, is_paystack_supported_country, format_currency
 from django.contrib.auth.models import User
 
 
@@ -37,7 +38,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['post'])
     def initiate_payment(self, request):
-        """Initiate payment with Paystack"""
+        """Initiate payment with Paystack - Multi-currency support"""
         user_id = request.user_payload.get('user_id') if self.request.user_payload else None
         if not user_id:
             return Response(
@@ -46,9 +47,18 @@ class PaymentViewSet(viewsets.ModelViewSet):
             )
         
         plan_id = request.data.get('plan_id')
+        country_code = request.data.get('country_code', 'KE')  # Default to Kenya
+        
         if not plan_id:
             return Response(
                 {'error': 'Plan ID is required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if country is supported by Paystack
+        if not is_paystack_supported_country(country_code):
+            return Response(
+                {'error': f'Country {country_code} is not supported for payments'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         
@@ -60,12 +70,23 @@ class PaymentViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
         
+        # Get currency for the country
+        currency = get_country_currency(country_code)
+        if not currency:
+            currency = 'KES'  # Default to KES
+        
+        # Convert price to local currency
+        local_amount = convert_from_kes(plan.price, currency)
+        
         # Create payment record
         payment = Payment.objects.create(
             user_id=user_id,
             plan=plan,
-            amount=plan.price,
-            currency='USD',
+            amount=plan.price,  # Store in KES internally
+            currency='KES',
+            local_amount=local_amount,
+            local_currency=currency,
+            country_code=country_code.upper(),
             status='pending',
             expires_at=timezone.now() + timezone.timedelta(hours=24)  # 24-hour expiry
         )
@@ -77,18 +98,31 @@ class PaymentViewSet(viewsets.ModelViewSet):
                 'Content-Type': 'application/json'
             }
             
+            # Convert to smallest currency unit (cents/kobo/etc.)
+            if currency in ['UGX', 'TZS']:  # These don't have subunits
+                amount_in_subunits = int(local_amount)
+            else:
+                amount_in_subunits = int(local_amount * 100)
+            
             payload = {
                 'email': request.user_payload.get('user_email', 'user@example.com'),
-                'amount': int(plan.price * 100),  # Convert to kobo
-                'currency': plan.currency,
+                'amount': amount_in_subunits,
+                'currency': currency,
                 'reference': str(payment.id),
                 'callback_url': f"{settings.FRONTEND_URL}/payment/verify/{payment.id}",
                 'metadata': {
                     'payment_id': str(payment.id),
                     'plan_id': plan.id,
-                    'user_id': user_id
+                    'user_id': user_id,
+                    'country_code': country_code,
+                    'original_currency': currency,
+                    'kes_amount': str(plan.price)
                 }
             }
+            
+            # Add country-specific parameters for Paystack
+            if country_code.upper() == 'NG':
+                payload['metadata']['bypass'] = 'local'  # For Nigeria local cards
             
             response = requests.post(
                 'https://api.paystack.co/transaction/initialize',

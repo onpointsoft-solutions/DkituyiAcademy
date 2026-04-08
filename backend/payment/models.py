@@ -25,12 +25,18 @@ class PaymentPlan(models.Model):
 
 
 class Payment(models.Model):
-    """Payment records for user purchases"""
+    """Payment records for user purchases - Multi-currency support"""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='payments')
     plan = models.ForeignKey(PaymentPlan, on_delete=models.CASCADE, related_name='payments')
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
-    currency = models.CharField(max_length=3, default='USD')
+    amount = models.DecimalField(max_digits=10, decimal_places=2, help_text="Amount in KES (base currency)")
+    currency = models.CharField(max_length=3, default='KES', help_text="Base currency (always KES)")
+    
+    # Multi-currency fields
+    local_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Amount in local currency")
+    local_currency = models.CharField(max_length=3, null=True, blank=True, help_text="Local currency code")
+    country_code = models.CharField(max_length=2, null=True, blank=True, help_text="Country code (KE, UG, TZ, NG, ZA)")
+    
     status = models.CharField(
         max_length=20,
         choices=[
@@ -51,6 +57,15 @@ class Payment(models.Model):
     
     def __str__(self):
         return f"Payment {self.id} by {self.user.username} - {self.plan.name}"
+    
+    @property
+    def display_amount(self):
+        """Get formatted amount in local currency or base currency"""
+        if self.local_amount and self.local_currency:
+            from core.currency import format_currency
+            return format_currency(float(self.local_amount), self.local_currency)
+        else:
+            return f"KSh {self.amount:,.2f}"
     
     @property
     def is_active(self):

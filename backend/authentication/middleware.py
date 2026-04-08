@@ -15,7 +15,7 @@ class JWTAuthMiddleware(MiddlewareMixin):
     """
     
     def process_request(self, request):
-        # Skip authentication for certain paths (but not reader endpoints)
+        # Skip authentication for certain paths (but not reader endpoints - they need JWT processing)
         skip_paths = [
             '/admin/', 
             '/api/auth/login/', 
@@ -28,11 +28,12 @@ class JWTAuthMiddleware(MiddlewareMixin):
         if any(request.path.startswith(path) for path in skip_paths):
             return None
             
-        # Debug logging for user, admin, books, and library endpoints
+        # Debug logging for user, admin, books, library, and reader endpoints
         if (request.path.startswith('/api/user/') or 
             request.path.startswith('/api/admin/') or 
             request.path.startswith('/api/books/') or
-            request.path.startswith('/api/library/')):
+            request.path.startswith('/api/library/') or
+            request.path.startswith('/api/reader/')):
             logger.info(f"🔍 Endpoint accessed: {request.path}")
             logger.info(f"🔍 Authorization header: {request.headers.get('Authorization')}")
             logger.info(f"🔍 User object: {getattr(request, 'user', 'None')}")
@@ -63,7 +64,8 @@ class JWTAuthMiddleware(MiddlewareMixin):
                 # Debug logging
                 if (request.path.startswith('/api/user/') or 
                     request.path.startswith('/api/admin/') or 
-                    request.path.startswith('/api/books/')):
+                    request.path.startswith('/api/books/') or
+                    request.path.startswith('/api/reader/')):
                     print(f"DEBUG: JWT decoded successfully: {payload}")
                 
                 # Attach user payload to request

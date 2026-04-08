@@ -859,6 +859,40 @@ export default function PDFReader() {
 
   const unlockPage = useCallback(async (pageNum) => {
     if (isPageUnlocked(pageNum)) { toast("Page already unlocked"); return; }
+    
+    // Check if previous page is completed (except for first page)
+    const previousPage = pageNum - 1;
+    if (previousPage >= 1 && !completedPages.has(previousPage)) {
+      const shouldCompleteFirst = window.confirm(
+        `Have you completed page ${previousPage}?\n\n` +
+        `It's recommended to mark pages as complete before unlocking the next one.\n\n` +
+        `Click "OK" to mark page ${previousPage} as complete and unlock page ${pageNum},\n` +
+        `or "Cancel" to just unlock page ${pageNum}.`
+      );
+      
+      if (shouldCompleteFirst) {
+        // Mark previous page as complete first
+        try {
+          const res = await api.post('/api/reader/features/mark_completed/', {
+            book_id: bookId,
+            page_number: previousPage
+          });
+          
+          if (res.data.message) {
+            setCompletedPages(prev => new Set([...prev, previousPage]));
+            toast(`Page ${previousPage} marked as completed!`);
+            
+            // Update progress
+            const progressPercent = ((previousPage) / Math.max(1, totalPages - 1)) * 100;
+            setProgress(progressPercent);
+          }
+        } catch (error) {
+          console.error('Failed to mark page as completed:', error);
+          toast('Failed to mark page as completed, but will proceed with unlock');
+        }
+      }
+    }
+    
     setUnlockLoading(true);
     try {
       const res = await api.post(`/api/reader/features/unlock_page/`, { book_id: bookId, page_number: pageNum });
@@ -937,6 +971,38 @@ export default function PDFReader() {
 
   const handleBulkUnlock = useCallback(async () => {
     if (unlockLoading || bulkUnlockCount < 1) return;
+    
+    // Check if current page is completed before bulk unlocking
+    if (!completedPages.has(currentPage)) {
+      const shouldCompleteFirst = window.confirm(
+        `Have you completed page ${currentPage}?\n\n` +
+        `It's recommended to mark pages as complete before unlocking more pages.\n\n` +
+        `Click "OK" to mark page ${currentPage} as complete and proceed with bulk unlock,\n` +
+        `or "Cancel" to just proceed with bulk unlock.`
+      );
+      
+      if (shouldCompleteFirst) {
+        // Mark current page as complete first
+        try {
+          const res = await api.post('/api/reader/features/mark_completed/', {
+            book_id: bookId,
+            page_number: currentPage
+          });
+          
+          if (res.data.message) {
+            setCompletedPages(prev => new Set([...prev, currentPage]));
+            toast(`Page ${currentPage} marked as completed!`);
+            
+            // Update progress
+            const progressPercent = ((currentPage) / Math.max(1, totalPages - 1)) * 100;
+            setProgress(progressPercent);
+          }
+        } catch (error) {
+          console.error('Failed to mark page as completed:', error);
+          toast('Failed to mark page as completed, but will proceed with bulk unlock');
+        }
+      }
+    }
     
     const totalCost = perPageCost * bulkUnlockCount;
     if (walletBalance < totalCost) { 
@@ -1469,7 +1535,7 @@ export default function PDFReader() {
         </TbBtn>
 
         {/* Page navigation */}
-        <TbBtn onClick={() => goToPage(currentPage - 1)} title="Previous (←)" compact={isMobile}>
+        <TbBtn onClick={() => goToPage(currentPage - 1)} title="Previous (Left Arrow)" compact={isMobile}>
           <Icon d={ICONS.prev} size={15} />
         </TbBtn>
         <input
@@ -1507,24 +1573,9 @@ export default function PDFReader() {
             / {totalPages || "—"}
           </span>
         )}
-        <TbBtn onClick={() => goToPage(currentPage + 1)} title="Next (→)" compact={isMobile}>
+        <TbBtn onClick={() => goToPage(currentPage + 1)} title="Next (Right Arrow)" compact={isMobile}>
           <Icon d={ICONS.next} size={15} />
         </TbBtn>
-
-        {/* Mark as Completed button */}
-        {!isPreviewMode() && (
-          <TbBtn 
-            onClick={() => markPageCompleted(currentPage)}
-            title="Mark page as completed"
-            active={completedPages.has(currentPage)}
-            compact={isMobile}
-          >
-            <span style={{ fontSize: isMobile ? 11 : 12, color: completedPages.has(currentPage) ? '#fff' : TOKENS.amber }}>
-              ✓
-            </span>
-            {!isMobile && <span style={{ marginLeft: 4 }}>Complete</span>}
-          </TbBtn>
-        )}
 
         {/* Zoom */}
         {!isMobile && <div style={{ width: 1, height: 24, background: TOKENS.borderLight, margin: "0 4px" }} />}
@@ -2011,6 +2062,50 @@ export default function PDFReader() {
             ))}
           </div>
         </div>
+      )}
+
+      {/* Mobile Floating Action Button for Complete */}
+      {isMobile && !isPreviewMode() && (
+        <button
+          onClick={() => markPageCompleted(currentPage)}
+          style={{
+            position: "fixed",
+            bottom: 20,
+            right: 20,
+            width: 60,
+            height: 60,
+            borderRadius: "50%",
+            background: completedPages.has(currentPage)
+              ? 'linear-gradient(135deg, #10b981, #059669)'
+              : 'linear-gradient(135deg, #f59e0b, #d97706)',
+            border: 'none',
+            boxShadow: completedPages.has(currentPage)
+              ? '0 4px 16px rgba(16, 185, 129, 0.4)'
+              : '0 4px 16px rgba(245, 158, 11, 0.4)',
+            cursor: 'pointer',
+            zIndex: 600,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.3s ease',
+            transform: completedPages.has(currentPage) ? 'scale(1.1)' : 'scale(1)',
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.transform = 'scale(1.2)';
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.transform = completedPages.has(currentPage) ? 'scale(1.1)' : 'scale(1)';
+          }}
+        >
+          <span style={{
+            color: '#fff',
+            fontSize: 24,
+            fontWeight: 'bold',
+            textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+          }}>
+            {completedPages.has(currentPage) ? '!' : '?'}
+          </span>
+        </button>
       )}
 
       {/* Toast */}

@@ -6,6 +6,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from django.views.decorators.csrf import csrf_exempt
 from books.models import Book
 from library.models import UserLibrary, ReadingProgress, ReadingSession
 from django.db import transaction
@@ -27,24 +28,27 @@ def get_user_from_jwt(request):
 
 @api_view(['POST'])
 @permission_classes([])
+@csrf_exempt
 def unlock_page(request):
     """Unlock a specific page of a book with sequential reading validation"""
+    print(f"debug {request.data}")
     book_id     = request.data.get('book_id')
     page_number = request.data.get('page_number')
+    
+    # Debug logging for request data
+    print(f"DEBUG: Unlock request - user_id: {getattr(request, 'user_payload', {}).get('user_id')}, book_id: {book_id}, page_number: {page_number}")
+    print(f"DEBUG: Full request data: {request.data}")
     
     # Get user from JWT payload
     user_payload = getattr(request, 'user_payload', {})
     user_id = user_payload.get('user_id')
-    print(f"DEBUG: Unlock request - user_id: {user_id}, book_id: {book_id}, page_number: {page_number}")
     
-    # Get the authenticated user
-    user = get_user_from_jwt(request)
-    if not user:
+    if not user_id:
         return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
     
     if not book_id or page_number is None:
         return Response(
-            {'error': 'book_id and page_number are required'},
+            {'error': 'book_id and page_number are required', 'received_data': request.data}, 
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -55,9 +59,19 @@ def unlock_page(request):
         print("just  DEBUG: Book not found")
         return Response({'error': 'Book not found'}, status=status.HTTP_404_NOT_FOUND)
 
+    # Get user from JWT payload
+    user_payload = getattr(request, 'user_payload', {})
+    user_id = user_payload.get('user_id')
+    
+    if not user_id:
+        return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+
     # Check if user has library entry (purchased or free access)
-    library_entry = UserLibrary.objects.filter(user_id=user.id, book=book).first()
-    print(f"just  DEBUG: Library entry: {library_entry}")
+    library_entry = UserLibrary.objects.filter(user_id=user_id, book=book).first()
+    if library_entry:
+        print(f"just  DEBUG: Library entry found: User {user_id} - Book {library_entry.book.title}")
+    else:
+        print(f"just  DEBUG: No library entry found for User {user_id}")
     
     # Allow page unlocking if:
     # 1. Book is free, OR
@@ -74,7 +88,7 @@ def unlock_page(request):
             status=status.HTTP_403_FORBIDDEN,
         )
     
-    if UnlockedPage.objects.filter(user_id=user.id, book=book, page_number=page_number).exists():
+    if UnlockedPage.objects.filter(user_id=user_id, book=book, page_number=page_number).exists():
         print("just  DEBUG: Page already unlocked")
         return Response({'error': 'Page already unlocked'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -82,20 +96,19 @@ def unlock_page(request):
     if page_number > 1:
         previous_page = page_number - 1
         previous_progress = ReadingProgress.objects.filter(
-            user_id=user.id, 
+            user_id=user_id, 
             book=book,
             current_page=previous_page,
             is_completed=True
         ).first()
-        
-        if not previous_progress:
+        """ print(previous_progress)
+        if previous_progress:
+            print("You are stuck here")
             return Response({
-                'error': f'You must complete page {previous_page} before unlocking page {page_number}',
-                'requires_completion': True,
-                'previous_page': previous_page
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-    wallet, _ = Wallet.objects.get_or_create(user_id=user.id)
+                'error': f'You must complete page {previous_page} first',
+                'previous_page': previous_page,
+            }, status=status.HTTP_400_BAD_REQUEST)"""
+    wallet, _ = Wallet.objects.get_or_create(user_id=user_id)
     print(f"just  DEBUG: Wallet: {wallet.balance} coins")
     
     # Calculate per-page cost using same logic as serializers
@@ -114,68 +127,94 @@ def unlock_page(request):
     print(f"just  DEBUG: Calculated page cost: {page_cost} coins (Book price: {book.price} KES, Pages: {book.pages})")
 
     if wallet.balance < page_cost:
+        print(f"just  DEBUG: Insufficient balance: {wallet.balance} < {page_cost}")
         return Response({'error': 'Insufficient balance'}, status=status.HTTP_402_PAYMENT_REQUIRED)
 
-    with transaction.atomic():
-        wallet.balance -= page_cost
-        wallet.save()
-        Transaction.objects.create(
-            user_id=user.id,
-            transaction_type='unlock_page',
-            amount=-page_cost,
-            description=f'Unlocked page {page_number} of {book.title}',
-            status='completed'
-        )
-        UnlockedPage.objects.create(user_id=user.id, book=book, page_number=page_number)
-
-    return Response({
-        'message': 'Page unlocked successfully', 
-        'remaining_balance': wallet.balance,
-        'page_cost': page_cost,
-        'book_price': float(book.price),
-        'book_pages': book.pages,
-        'per_page_cost': float(round(book.price / book.pages, 2)) if book.pages > 0 and book.price > 0 else 0
-    })
+    print(f"just  DEBUG: Starting transaction...")
+    try:
+        with transaction.atomic():
+            print(f"just  DEBUG: Deducting {page_cost} from wallet balance {wallet.balance}")
+            wallet.balance -= page_cost
+            print(f"just  DEBUG: New wallet balance: {wallet.balance}")
+            wallet.save()
+            print(f"just  DEBUG: Wallet saved successfully")
+            
+            print(f"just  DEBUG: Creating transaction record...")
+            Transaction.objects.create(
+                user_id=user_id,
+                transaction_type='unlock_page',
+                amount=-page_cost,
+                description=f'Unlocked page {page_number} of {book.title}',
+                status='completed'
+            )
+            print(f"just  DEBUG: Transaction record created")
+            
+            print(f"just  DEBUG: Creating unlocked page record...")
+            UnlockedPage.objects.create(user_id=user_id, book=book, page_number=page_number)
+            print(f"just  DEBUG: Unlocked page record created")
+            
+            print(f"just  DEBUG: Transaction completed successfully")
+        
+        print(f"just  DEBUG: Creating response...")
+        return Response({
+            'message': 'Page unlocked successfully', 
+            'remaining_balance': wallet.balance,
+            'page_cost': page_cost,
+            'book_price': float(book.price),
+            'book_pages': book.pages,
+            'per_page_cost': float(round(book.price / book.pages, 2)) if book.pages > 0 and book.price > 0 else 0
+        })
+    except Exception as e:
+        print(f"just  DEBUG: CRITICAL ERROR in transaction: {str(e)}")
+        print(f"just  DEBUG: Error type: {type(e)}")
+        return Response({'error': f'Transaction failed: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['POST'])
 @permission_classes([])
+@csrf_exempt
 def mark_page_completed(request):
     """Mark a page as completed and update reading progress"""
-    user = get_user_from_jwt(request)
-    if not user:
+    # Get user from JWT payload (works even when auth is skipped)
+    user_payload = getattr(request, 'user_payload', {})
+    user_id = user_payload.get('user_id')
+    
+    if not user_id:
         return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
 
     book_id = request.data.get('book_id')
     page_number = request.data.get('page_number')
 
+    # Debug logging for request data
+    print(f"DEBUG: Mark completed request - user_id: {user_id}, book_id: {book_id}, page_number: {page_number}")
+    print(f"DEBUG: Full request data: {request.data}")
+
+    if not book_id or page_number is None:
+        return Response(
+            {'error': 'book_id and page_number are required', 'received_data': request.data}, 
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     if not book_id or page_number is None:
         return Response({'error': 'book_id and page_number are required'}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
+        user = User.objects.get(id=user_id)
         book = Book.objects.get(id=book_id)
-    except Book.DoesNotExist:
-        return Response({'error': 'Book not found'}, status=status.HTTP_404_NOT_FOUND)
-
-    # Check if user has access to this book
-    library_entry = UserLibrary.objects.filter(user_id=user.id, book=book).first()
-    if not book.is_free and not library_entry:
-        return Response({'error': 'Access denied'}, status=status.HTTP_403_FORBIDDEN)
-
-    # Check if page is unlocked
-    if not UnlockedPage.objects.filter(user_id=user.id, book=book, page_number=page_number).exists():
-        return Response({'error': 'Page must be unlocked before marking as completed'}, status=status.HTTP_400_BAD_REQUEST)
+    except (User.DoesNotExist, Book.DoesNotExist):
+        return Response({'error': 'User or book not found'}, status=status.HTTP_404_NOT_FOUND)
 
     # Update or create reading progress
     progress, created = ReadingProgress.objects.get_or_create(
-        user_id=user.id, 
+        user_id=user_id, 
         book=book,
         defaults={'current_page': page_number, 'total_pages': book.pages}
     )
     
+    # Use the update_progress method to properly calculate percentage
+    progress.update_progress(current_page=page_number, total_pages=book.pages)
+    
     # Mark the current page as completed
-    progress.current_page = page_number
-    progress.total_pages = book.pages
     progress.is_completed = True
     progress.last_read = timezone.now()
     progress.save()
@@ -195,22 +234,28 @@ def mark_page_completed(request):
 @api_view(['GET'])
 @permission_classes([])
 def get_unlocked_pages(request, book_id):
-    user = get_user_from_jwt(request)
-    if not user:
+    # Get user from JWT payload (works even when auth is skipped)
+    print(f"DEBUG: Getting unlocked pages for user_id: {request}")
+    user_payload = getattr(request, 'user_payload', {})
+    user_id = user_payload.get('user_id')
+    
+    if not user_id:
         return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
     
-    print(f"DEBUG: Getting unlocked pages for user_id: {user.id}, book_id: {book_id}")
-
     try:
         book = Book.objects.get(id=book_id)
     except Book.DoesNotExist:
         return Response({'error': 'Book not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    print(f"DEBUG: Getting unlocked pages for user_id: {user_id}, book_id: {book_id}")
 
-    pages = UnlockedPage.objects.filter(
-        user_id=user.id, book=book
-    ).values_list('page_number', flat=True)
-
-    return Response({'unlocked_pages': list(pages)})
+    try:
+        pages = UnlockedPage.objects.filter(
+            user_id=user_id, book=book
+        ).values_list('page_number', flat=True)
+        return Response({'unlocked_pages': pages})
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['POST'])
@@ -234,7 +279,7 @@ def create_note(request):
         return Response({'error': 'Book not found'}, status=status.HTTP_404_NOT_FOUND)
 
     note = Note.objects.create(
-        user_id=user.id,
+        user_id=user_id,
         book=book,
         page_number=page_number,
         content=content
@@ -261,7 +306,7 @@ def get_notes(request, book_id):
     except Book.DoesNotExist:
         return Response({'error': 'Book not found'}, status=status.HTTP_404_NOT_FOUND)
 
-    notes = Note.objects.filter(user_id=user.id, book=book).order_by('created_at')
+    notes = Note.objects.filter(user_id=user_id, book=book).order_by('created_at')
     return Response([{
         'id': note.id,
         'content': note.content,
@@ -279,7 +324,7 @@ def delete_note(request, note_id):
         return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
 
     try:
-        note = Note.objects.get(id=note_id, user_id=user.id)
+        note = Note.objects.get(id=note_id, user_id=user_id)
         note.delete()
         return Response({'message': 'Note deleted successfully'})
     except Note.DoesNotExist:
@@ -307,7 +352,7 @@ def create_bookmark(request):
         return Response({'error': 'Book not found'}, status=status.HTTP_404_NOT_FOUND)
 
     bookmark = Bookmark.objects.create(
-        user_id=user.id,
+        user_id=user_id,
         book=book,
         page_number=page_number,
         title=title
@@ -334,7 +379,7 @@ def get_bookmarks(request, book_id):
     except Book.DoesNotExist:
         return Response({'error': 'Book not found'}, status=status.HTTP_404_NOT_FOUND)
 
-    bookmarks = Bookmark.objects.filter(user_id=user.id, book=book).order_by('page_number')
+    bookmarks = Bookmark.objects.filter(user_id=user_id, book=book).order_by('page_number')
     return Response([{
         'id': bookmark.id,
         'title': bookmark.title,
@@ -352,7 +397,7 @@ def delete_bookmark(request, bookmark_id):
         return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
 
     try:
-        bookmark = Bookmark.objects.get(id=bookmark_id, user_id=user.id)
+        bookmark = Bookmark.objects.get(id=bookmark_id, user_id=user_id)
         bookmark.delete()
         return Response({'message': 'Bookmark deleted successfully'})
     except Bookmark.DoesNotExist:

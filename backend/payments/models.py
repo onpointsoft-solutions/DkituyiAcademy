@@ -56,10 +56,10 @@ class Transaction(models.Model):
         return f"{self.transaction_type} - KES {self.amount} for user {self.user_id}"
 
 class PaystackPayment(models.Model):
-    """Paystack payment records"""
+    """Paystack payment records - Multi-currency support"""
     user_id = models.IntegerField()
     email = models.EmailField()
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    amount = models.DecimalField(max_digits=10, decimal_places=2, help_text="Amount in KES (base currency)")
     reference = models.CharField(max_length=100, unique=True)
     access_code = models.CharField(max_length=100, blank=True, null=True)
     authorization_url = models.URLField(blank=True, null=True)
@@ -67,8 +67,15 @@ class PaystackPayment(models.Model):
     response_data = models.JSONField(default=dict)
     created_at = models.DateTimeField(auto_now_add=True)
     processed_at = models.DateTimeField(blank=True, null=True)
+    
+    # Multi-currency fields
+    currency = models.CharField(max_length=3, default='KES', help_text="Original currency used")
+    country_code = models.CharField(max_length=2, default='KE', help_text="Country code")
+    local_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Amount in original currency")
 
     def __str__(self):
+        if self.local_amount and self.currency:
+            return f"Paystack payment {self.reference} - {self.currency} {self.local_amount}"
         return f"Paystack payment {self.reference} - KES {self.amount}"
 
 class ContentUnlock(models.Model):

@@ -47,7 +47,7 @@ class WalletViewSet(viewsets.ViewSet):
     
     @action(detail=False, methods=['post'])
     def topup(self, request):
-        """Initiate wallet top-up via Paystack"""
+        """Initiate wallet top-up via Paystack - Multi-currency support"""
         user_id = request.user_payload.get('user_id') if request.user_payload else None
         if not user_id:
             return Response(
@@ -57,6 +57,7 @@ class WalletViewSet(viewsets.ViewSet):
         
         email = request.data.get('email')
         amount = request.data.get('amount')
+        country_code = request.data.get('country_code', 'KE')  # Default to Kenya
         
         if not email or not amount:
             return Response(
@@ -64,12 +65,29 @@ class WalletViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Validate amount (minimum 20 KES)
+        # Check if country is supported by Paystack
+        from core.currency import is_paystack_supported_country
+        if not is_paystack_supported_country(country_code):
+            return Response(
+                {'error': f'Country {country_code} is not supported for payments'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get currency for the country
+        from core.currency import get_country_currency, convert_to_kes
+        currency = get_country_currency(country_code)
+        if not currency:
+            currency = 'KES'  # Default to KES if country not found
+        
+        # Convert amount to KES for internal storage
         try:
-            amount = float(amount)
-            if amount < 20:
+            local_amount = float(amount)
+            kes_amount = convert_to_kes(local_amount, currency)
+            
+            # Validate amount (minimum 20 KES equivalent)
+            if kes_amount < 20:
                 return Response(
-                    {'error': 'Minimum top-up amount is KES 20'}, 
+                    {'error': f'Minimum top-up amount is KES 20 (equivalent to {currency} {local_amount:.2f})'}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
         except ValueError:
@@ -82,13 +100,31 @@ class WalletViewSet(viewsets.ViewSet):
         paystack_service = PaystackService()
         result = paystack_service.initialize_transaction(
             email=email,
-            amount=amount,
+            amount=local_amount,  # Send local amount (not KES converted)
             user_id=user_id,
+            currency=currency,  # Pass local currency for Paystack
+            country_code=country_code,
+            request_data=request.data,  # Pass request data for mobile money options
             metadata={"custom_fields": [
                 {
                     "display_name": "DKT User ID",
                     "variable_name": "user_id",
                     "value": user_id
+                },
+                {
+                    "display_name": "Country",
+                    "variable_name": "country_code", 
+                    "value": country_code.upper()
+                },
+                {
+                    "display_name": "Original Currency",
+                    "variable_name": "original_currency",
+                    "value": currency
+                },
+                {
+                    "display_name": "Original Amount",
+                    "variable_name": "original_amount", 
+                    "value": str(local_amount)
                 }
             ]}
         )
@@ -143,6 +179,158 @@ class WalletViewSet(viewsets.ViewSet):
             )
     
     @action(detail=False, methods=['get'])
+    def mobile_money_options(self, request):
+        """Get available mobile money options by country"""
+        country_code = request.query_params.get('country_code', 'KE').upper()
+        
+        mobile_options = {
+            'KE': {
+                'name': 'Kenya',
+                'currency': 'KES',
+                'mobile_money_options': [
+                    {
+                        'code': 'mpesa',
+                        'name': 'M-Pesa',
+                        'description': 'Safaricom mobile money',
+                        'icon': '📱'
+                    },
+                    {
+                        'code': 'airtel_money',
+                        'name': 'Airtel Money',
+                        'description': 'Airtel mobile money',
+                        'icon': '📱'
+                    },
+                    {
+                        'code': 'tkash',
+                        'name': 'T-Kash',
+                        'description': 'Telkom mobile money',
+                        'icon': '📱'
+                    },
+                    {
+                        'code': 'equity',
+                        'name': 'Equity',
+                        'description': 'Equity Bank mobile money',
+                        'icon': '📱'
+                    }
+                ]
+            },
+            'UG': {
+                'name': 'Uganda',
+                'currency': 'UGX',
+                'mobile_money_options': [
+                    {
+                        'code': 'mtn',
+                        'name': 'MTN Mobile Money',
+                        'description': 'MTN Uganda mobile money',
+                        'icon': '📱'
+                    },
+                    {
+                        'code': 'airtel_money',
+                        'name': 'Airtel Money',
+                        'description': 'Airtel Uganda mobile money',
+                        'icon': '📱'
+                    },
+                    {
+                        'code': 'warid',
+                        'name': 'Warid',
+                        'description': 'Warid Pesa',
+                        'icon': '📱'
+                    }
+                ]
+            },
+            'NG': {
+                'name': 'Nigeria',
+                'currency': 'NGN',
+                'mobile_money_options': [
+                    {
+                        'code': 'paga',
+                        'name': 'PAGA',
+                        'description': 'PAGA payment platform',
+                        'icon': '📱'
+                    },
+                    {
+                        'code': 'opay',
+                        'name': 'OPay',
+                        'description': 'OPay payment platform',
+                        'icon': '📱'
+                    },
+                    {
+                        'code': 'flutterwave',
+                        'name': 'Flutterwave',
+                        'description': 'Flutterwave payment platform',
+                        'icon': '📱'
+                    }
+                ]
+            },
+            'TZ': {
+                'name': 'Tanzania',
+                'currency': 'TZS',
+                'mobile_money_options': [
+                    {
+                        'code': 'tigopesa',
+                        'name': 'Tigo Pesa',
+                        'description': 'Tigo Pesa mobile money',
+                        'icon': '📱'
+                    },
+                    {
+                        'code': 'mtn',
+                        'name': 'MTN Mobile Money',
+                        'description': 'MTN Tanzania mobile money',
+                        'icon': '📱'
+                    },
+                    {
+                        'code': 'airtel_money',
+                        'name': 'Airtel Money',
+                        'description': 'Airtel Tanzania mobile money',
+                        'icon': '📱'
+                    },
+                    {
+                        'code': 'halopesa',
+                        'name': 'Halopesa',
+                        'description': 'Halopesa mobile money',
+                        'icon': '📱'
+                    }
+                ]
+            },
+            'ZA': {
+                'name': 'South Africa',
+                'currency': 'ZAR',
+                'mobile_money_options': [
+                    {
+                        'code': 'snapscan',
+                        'name': 'SnapScan',
+                        'description': 'SnapScan payment platform',
+                        'icon': '📱'
+                    },
+                    {
+                        'code': 'ozow',
+                        'name': 'Ozow',
+                        'description': 'Ozow payment platform',
+                        'icon': '📱'
+                    },
+                    {
+                        'code': 'siyapay',
+                        'name': 'siyapay',
+                        'description': 'siyapay payment platform',
+                        'icon': '📱'
+                    }
+                ]
+            }
+        }
+        
+        if country_code in mobile_options:
+            return Response({
+                'country': mobile_options[country_code],
+                'supported_mobile_money': mobile_options[country_code]['mobile_money_options'],
+                'message': f'Mobile money options available for {mobile_options[country_code]["name"]}'
+            })
+        else:
+            return Response({
+                'error': f'Country {country_code} not supported for mobile money options',
+                'supported_countries': list(mobile_options.keys())
+            }, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=False, methods=['get'])
     def transactions(self, request):
         """Get user transaction history"""
         user_id = request.user_payload.get('user_id') if request.user_payload else None
@@ -155,6 +343,33 @@ class WalletViewSet(viewsets.ViewSet):
         transactions = Transaction.objects.filter(user_id=user_id).order_by('-created_at')
         serializer = TransactionSerializer(transactions, many=True)
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def payment_methods_status(self, request):
+        """Check payment methods status for debugging"""
+        user_id = request.user_payload.get('user_id') if request.user_payload else None
+        
+        return Response({
+            'message': 'Payment system is operational',
+            'features': {
+                'multi_currency': True,
+                'mobile_money': True,
+                'paystack_integration': True,
+                'supported_countries': ['KE', 'UG', 'TZ', 'NG', 'ZA'],
+                'supported_currencies': ['KES', 'UGX', 'TZS', 'NGN', 'ZAR']
+            },
+            'endpoints': {
+                'wallet_topup': '/api/payments/wallet/topup/',
+                'mobile_money_options': '/api/payments/wallet/mobile-money-options/',
+                'payment_plans': '/api/payment/plans/',
+                'transactions': '/api/payments/wallet/transactions/'
+            },
+            'debug_info': {
+                'user_id': user_id,
+                'request_data': dict(request.data) if request.data else {},
+                'query_params': dict(request.query_params) if request.query_params else {}
+            }
+        })
 
 class ContentUnlockViewSet(viewsets.ViewSet):
     """

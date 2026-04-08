@@ -14,8 +14,8 @@ class PaystackService:
         self.callback_url = settings.PAYSTACK_CALLBACK_URL
         self.simulation_mode = simulation_mode
         
-    def initialize_transaction(self, email, amount, user_id, callback_url=None, metadata=None):
-        """Initialize Paystack transaction"""
+    def initialize_transaction(self, email, amount, user_id, callback_url=None, metadata=None, currency='KES', country_code='KE', request_data=None):
+        """Initialize Paystack transaction - Multi-currency support"""
         headers = {
             "Authorization": f"Bearer {self.secret_key}",
             "Content-Type": "application/json"
@@ -28,27 +28,36 @@ class PaystackService:
         paystack_payment = PaystackPayment.objects.create(
             user_id=user_id,
             email=email,
-            amount=amount,
-            reference=reference
+            amount=amount,  # Store in KES internally
+            reference=reference,
+            currency=currency,  # Store original currency
+            country_code=country_code
         )
         
         # Prepare transaction data
+        # Convert amount to smallest currency unit (cents/kobo/etc.)
+        if currency in ['UGX', 'TZS']:  # These don't have subunits
+            amount_in_subunits = int(amount)
+        else:
+            amount_in_subunits = int(amount * 100)
+        
         payload = {
             "email": email,
-            "amount": int(amount * 100),  # Paystack uses amount in kobo/cents
+            "amount": amount_in_subunits,
+            "currency": currency,  # Use local currency for Paystack
             "reference": reference,
             "callback_url": callback_url or self.callback_url,
-            "metadata": metadata or {
+            "metadata": {
                 "user_id": user_id,
-                "custom_fields": [
-                    {
-                        "display_name": "DKT User ID",
-                        "variable_name": "user_id",
-                        "value": user_id
-                    }
-                ]
+                "country_code": country_code,
+                "original_currency": currency,
+                "kes_amount": str(amount)
             }
         }
+        
+        # Add country-specific parameters
+        if country_code.upper() == 'NG':
+            payload['metadata']['bypass'] = 'local'  # For Nigeria local cards
         
         try:
             response = requests.post(
@@ -56,33 +65,38 @@ class PaystackService:
                 json=payload,
                 headers=headers
             )
+            
             response.raise_for_status()
             
             result = response.json()
             
-            if result['status']:
-                # Update payment record with response
-                paystack_payment.access_code = result['data'].get('access_code')
-                paystack_payment.authorization_url = result['data'].get('authorization_url')
-                paystack_payment.response_data = result
-                paystack_payment.save()
-                
-                return {
-                    "success": True,
-                    "authorization_url": result['data'].get('authorization_url'),
-                    "access_code": result['data'].get('access_code'),
-                    "reference": reference
-                }
-            else:
-                paystack_payment.status = "failed"
-                paystack_payment.save()
-                return {"success": False, "error": result.get('message', 'Transaction initialization failed')}
-                
-        except requests.exceptions.RequestException as e:
-            print(f"Error initializing Paystack transaction: {e}")
-            paystack_payment.status = "failed"
+            # Update payment record with response
+            paystack_payment.authorization_url = result.get('data', {}).get('authorization_url')
+            paystack_payment.access_code = result.get('data', {}).get('access_code')
+            paystack_payment.response_data = result
             paystack_payment.save()
-            return {"success": False, "error": str(e)}
+            
+            return {
+                'success': True,
+                'authorization_url': result['data']['authorization_url'],
+                'access_code': result['data']['access_code'],
+                'reference': reference
+            }
+            
+        except requests.exceptions.HTTPError as e:
+            print(f"HTTP Error initializing Paystack transaction: {e}")
+            print(f"Response body: {e.response.text if e.response else 'No response'}")
+            return {
+                'success': False,
+                'error': str(e),
+                'response_body': e.response.text if e.response else 'No response'
+            }
+        except Exception as e:
+            print(f"Error initializing Paystack transaction: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
     
     def verify_transaction(self, reference):
         """Verify Paystack transaction"""

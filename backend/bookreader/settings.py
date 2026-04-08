@@ -51,6 +51,7 @@ LOCAL_APPS = [
     'reader',
     'admin_api',
     'user_api',
+    'payment',
     'payments',  # Updated to payments app
 ]
 
@@ -66,6 +67,7 @@ MIDDLEWARE = [
     'authentication.middleware.JWTAuthMiddleware',  # Move after Django's auth middleware
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'authentication.middleware_csrf.DisableCSRFMiddleware',  # Custom middleware to disable CSRF for API endpoints
 ]
 
 # CSRF Settings for production
@@ -214,6 +216,28 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024  # 50MB
 # Payment Settings
 PAYMENT_CURRENCY = 'USD'
 DEFAULT_BOOK_PRICE = 9.99
+
+# Multi-Currency Support for African Countries
+CURRENCY_CONVERSION_RATES = {
+    'USD': 1.0,  # Base currency
+    'KES': 130.0,  # Kenyan Shilling
+    'UGX': 3700.0,  # Ugandan Shilling
+    'TZS': 2500.0,  # Tanzanian Shilling
+    'NGN': 750.0,   # Nigerian Naira
+    'ZAR': 18.5,    # South African Rand
+}
+
+# Supported Countries and Currencies
+SUPPORTED_COUNTRIES = {
+    'KE': {'currency': 'KES', 'name': 'Kenya'},
+    'UG': {'currency': 'UGX', 'name': 'Uganda'},
+    'TZ': {'currency': 'TZS', 'name': 'Tanzania'},
+    'NG': {'currency': 'NGN', 'name': 'Nigeria'},
+    'ZA': {'currency': 'ZAR', 'name': 'South Africa'},
+}
+
+# Paystack Supported Countries
+PAYSTACK_SUPPORTED_COUNTRIES = ['KE', 'UG', 'GH', 'ZA', 'NG']
 
 # Email Settings for dkituyi academy
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
