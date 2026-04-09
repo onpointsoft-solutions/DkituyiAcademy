@@ -133,3 +133,24 @@ class UnlockedPage(models.Model):
     
     def __str__(self):
         return f"User {self.user_id} - {self.book.title} - Page {self.page_number}"
+
+class UnlockedChapter(models.Model):
+    """
+    Model to track unlocked chapters for each user and book
+    """
+    user_id = models.PositiveIntegerField()
+    book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name='unlocked_chapters')
+    chapter_number = models.PositiveIntegerField()
+    amount_paid = models.DecimalField(max_digits=10, decimal_places=2, default=30.00)  # 30 KES per chapter
+    unlocked_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ['user_id', 'book', 'chapter_number']
+        ordering = ['-unlocked_at']
+        indexes = [
+            models.Index(fields=['user_id', 'book']),
+            models.Index(fields=['user_id', 'book', 'chapter_number']),
+        ]
+    
+    def __str__(self):
+        return f"User {self.user_id} - {self.book.title} - Chapter {self.chapter_number}"

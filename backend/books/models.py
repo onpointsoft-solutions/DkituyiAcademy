@@ -103,6 +103,7 @@ class BookChapter(models.Model):
     chapter_number = models.PositiveIntegerField()
     pages_count = models.PositiveIntegerField(default=1)
     content = models.TextField()
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=30.00, help_text="Price to unlock this chapter")
     is_free = models.BooleanField(default=False, help_text="Make this chapter available for free preview")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -113,6 +114,18 @@ class BookChapter(models.Model):
     
     def __str__(self):
         return f"Chapter {self.chapter_number}: {self.title}"
+    
+    @property
+    def actual_price(self):
+        """Get the actual price (0 if free, otherwise the set price)"""
+        return 0.00 if self.is_free else self.price
+    
+    @property
+    def display_price(self):
+        """Get formatted price for display"""
+        if self.is_free:
+            return "FREE"
+        return f"{self.price:.2f} KES"
 
 
 class BookPage(models.Model):

@@ -9,41 +9,44 @@ const PDFJS_CDN = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION
 const WORKER_CDN = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.worker.min.js`;
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
-const TOKENS = {
-  inkBlack:    "#0a0a0a",
-  parchment:   "#f5f5f5",
-  parchmentMid:"#e0e0e0",
-  parchmentDim:"#c0c0c0",
-  amber:       "#22c55e",
-  amberDim:    "rgba(34,197,94,0.18)",
-  rust:        "#16a34a",
-  rustLight:   "#4ade80",
-  rosewood:    "#e6508c",
-  cobalt:      "#5096f0",
-  inkBrown:    "#171717",
-  warmGray:    "#737373",
-  dimText:     "rgba(255,255,255,0.5)",
-  subtleText:  "rgba(255,255,255,0.8)",
-  bodyText:    "#ffffff",
-  surfaceDark: "#0a0a0a",
-  surfaceMid:  "#171717",
-  surfaceDeep: "#000000",
-  surfaceCard: "rgba(34,197,94,0.08)",
-  border:      "rgba(34,197,94,0.3)",
-  borderLight: "rgba(34,197,94,0.15)",
+const T = {
+  // Sidebar / chrome — always dark
+  chromeBg:     "#0d0d0d",
+  chromeDeep:   "#080808",
+  chromeMid:    "#141414",
+  chromeBorder: "rgba(255,255,255,0.08)",
+  chromeText:   "rgba(255,255,255,0.92)",
+  chromeMuted:  "rgba(255,255,255,0.38)",
+  chromeDim:    "rgba(255,255,255,0.18)",
+
+  // Accent
+  green:        "#22c55e",
+  greenDim:     "rgba(34,197,94,0.15)",
+  greenBorder:  "rgba(34,197,94,0.3)",
+  greenDeep:    "#16a34a",
+  greenLight:   "#4ade80",
+
+  // Alerts / states
+  rose:         "#f43f5e",
+  blue:         "#3b82f6",
+  amber:        "#f59e0b",
+
+  // PDF viewer background — changes with theme
+  viewerDark:   "#1a1a1a",
+  viewerLight:  "#e8e4dc",
 };
 
 const HL_COLORS = {
-  yellow: "rgba(255,218,60,0.4)",
+  yellow: "rgba(255,218,60,0.42)",
   green:  "rgba(80,200,110,0.38)",
   blue:   "rgba(80,150,240,0.38)",
-  pink:   "rgba(230,80,140,0.35)",
+  pink:   "rgba(240,80,140,0.36)",
 };
 const HL_SWATCHES = {
   yellow: "#ffd93c",
   green:  "#50c86e",
   blue:   "#5096f0",
-  pink:   "#e6508c",
+  pink:   "#f0508c",
 };
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
@@ -66,36 +69,37 @@ const ICONS = {
   sun:       "M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41.39.39 1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41.39.39 1.03.39 1.41 0l1.06-1.06z",
   moon:      "M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44.06-.9.1-1.36.1z",
   lock:      "M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z",
+  unlock:    "M12 1C8.676 1 6 3.676 6 7v1H4v15h16V8h-8V7c0-2.21 1.79-4 4-4s4 1.79 4 4h2c0-3.314-2.686-6-6-6zm0 11c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2z",
   x:         "M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z",
   refresh:   "M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.76L13 11h7V4l-2.35 2.35z",
+  check:     "M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z",
 };
 
-// ─── Toolbar Button ───────────────────────────────────────────────────────────
+// ─── Toolbar Button — always dark chrome style ────────────────────────────────
 function TbBtn({ active, onClick, title, children, compact = false }) {
-  const [hovered, setHovered] = useState(false);
+  const [hov, setHov] = useState(false);
   return (
     <button
-      onClick={onClick}
-      title={title}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onClick={onClick} title={title}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
       style={{
-        height: compact ? 30 : 32,
-        minWidth: compact ? 30 : 32,
-        padding: compact ? "0 5px" : "0 9px",
+        height: compact ? 28 : 30,
+        minWidth: compact ? 28 : 30,
+        padding: compact ? "0 6px" : "0 10px",
         background: active
-          ? "linear-gradient(135deg, #8b3a1e, #a3451f)"
-          : hovered ? "rgba(255,255,255,0.07)" : "transparent",
-        border: `1px solid ${active ? TOKENS.rustLight : hovered ? TOKENS.borderLight : "transparent"}`,
+          ? `linear-gradient(135deg, ${T.greenDeep}, ${T.green})`
+          : hov ? "rgba(255,255,255,0.07)" : "transparent",
+        border: `1px solid ${active ? T.greenBorder : hov ? "rgba(255,255,255,0.12)" : "transparent"}`,
         borderRadius: 6,
-        color: active ? "#fff" : hovered ? TOKENS.bodyText : TOKENS.subtleText,
+        color: active ? "#fff" : hov ? T.chromeText : T.chromeMuted,
         cursor: "pointer",
         display: "flex", alignItems: "center", gap: 5,
         fontSize: 11, fontFamily: "'Georgia', serif",
         letterSpacing: "0.02em",
-        transition: "all 0.15s ease",
+        transition: "all 0.12s ease",
         outline: "none", flexShrink: 0,
-        boxShadow: active ? "0 2px 8px rgba(139,58,30,0.4)" : "none",
+        boxShadow: active ? "0 1px 8px rgba(34,197,94,0.35)" : "none",
       }}
     >
       {children}
@@ -103,22 +107,23 @@ function TbBtn({ active, onClick, title, children, compact = false }) {
   );
 }
 
+function Divider() {
+  return <div style={{ width: 1, height: 20, background: T.chromeBorder, margin: "0 3px", flexShrink: 0 }} />;
+}
+
 // ─── Swatch ───────────────────────────────────────────────────────────────────
 function Swatch({ name, hex, active, onClick }) {
-  const [hovered, setHovered] = useState(false);
+  const [hov, setHov] = useState(false);
   return (
-    <div
-      onClick={() => onClick(name)}
-      title={name}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+    <div onClick={() => onClick(name)} title={name}
+      onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
       style={{
-        width: 18, height: 18, borderRadius: "50%", background: hex,
+        width: 16, height: 16, borderRadius: "50%", background: hex,
         cursor: "pointer",
-        border: active ? "2px solid #fff" : "2px solid transparent",
-        boxShadow: active ? `0 0 0 1px ${hex}` : hovered ? "0 0 0 1px rgba(255,255,255,0.3)" : "none",
-        transform: active ? "scale(1.3)" : hovered ? "scale(1.15)" : "scale(1)",
-        transition: "all 0.15s ease", flexShrink: 0,
+        border: active ? "2.5px solid #fff" : "2.5px solid transparent",
+        boxShadow: active ? `0 0 0 1.5px ${hex}` : hov ? "0 0 0 1px rgba(255,255,255,0.25)" : "none",
+        transform: active ? "scale(1.35)" : hov ? "scale(1.18)" : "scale(1)",
+        transition: "all 0.13s ease", flexShrink: 0,
       }}
     />
   );
@@ -129,25 +134,22 @@ function usePdfJs() {
   const [ready, setReady] = useState(!!window.pdfjsLib);
   useEffect(() => {
     if (window.pdfjsLib) { setReady(true); return; }
-    const script = document.createElement("script");
-    script.src = PDFJS_CDN;
-    script.onload = () => {
-      window.pdfjsLib.GlobalWorkerOptions.workerSrc = WORKER_CDN;
-      setReady(true);
-    };
-    document.head.appendChild(script);
+    const s = document.createElement("script");
+    s.src = PDFJS_CDN;
+    s.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = WORKER_CDN; setReady(true); };
+    document.head.appendChild(s);
   }, []);
   return ready;
 }
 
 // ─── PageCanvas ───────────────────────────────────────────────────────────────
-// isLocked      → full lock screen (no PDF)
-// showUnlockCTA → last unlocked page: render PDF + fade CTA at bottom
 function PageCanvas({
   pdf, pageNum, scale, highlights, mode, hlColor,
   onHighlight, onNote, onBookmark, onRemoveHighlight, isMobile, isLocked,
-  showUnlockCTA, perPageCost, walletBalance, onUnlockPage, isLight,
+  showUnlockCTA, perPageCost, walletBalance, onUnlockPage, pdfTheme,
   isCompleted, onMarkCompleted, isPageUnlocked,
+  chapters, unlockedChapters, onUnlockChapter, currentPage, setCurrentPage,
+  setPageInput, setProgress, totalPages, pageRefs, toast
 }) {
   const canvasRef = useRef(null);
   const wrapRef   = useRef(null);
@@ -157,15 +159,18 @@ function PageCanvas({
   const [dragRect, setDragRect] = useState(null);
   const renderTaskRef = useRef(null);
   const canAfford = walletBalance >= perPageCost;
+  const isLight = pdfTheme === "light"; // theme only for the PDF canvas area
 
-  // Render PDF
+  const getChapterForPage = (pn) => {
+    if (!chapters?.length) return null;
+    return chapters.find(c => c.page_range?.start <= pn && c.page_range?.end >= pn);
+  };
+
   useEffect(() => {
     if (!pdf || !canvasRef.current || isLocked) return;
     let cancelled = false;
     async function render() {
-      if (renderTaskRef.current) {
-        try { renderTaskRef.current.cancel(); } catch {}
-      }
+      if (renderTaskRef.current) { try { renderTaskRef.current.cancel(); } catch {} }
       const page = await pdf.getPage(pageNum);
       let sc = scale;
       if (sc === "fit") {
@@ -173,21 +178,17 @@ function PageCanvas({
         const viewerW = (wrapRef.current?.parentElement?.clientWidth ?? 360) - (isMobile ? 24 : 48);
         sc = Math.min(viewerW / vp0.width, isMobile ? 2.0 : 3.0);
       } else if (isMobile) {
-        // On mobile, auto-constrain scale so page never exceeds screen width
         const vp0 = page.getViewport({ scale: 1 });
         const maxW = window.innerWidth - 24;
-        const fitScale = maxW / vp0.width;
-        sc = Math.min(sc, fitScale * 1.5);
+        sc = Math.min(sc, (maxW / vp0.width) * 1.5);
       }
       const vp = page.getViewport({ scale: sc });
       if (cancelled) return;
       const canvas = canvasRef.current;
       if (!canvas) return;
-      canvas.width = vp.width;
-      canvas.height = vp.height;
+      canvas.width = vp.width; canvas.height = vp.height;
       setDims({ w: vp.width, h: vp.height });
-      const ctx = canvas.getContext("2d");
-      const task = page.render({ canvasContext: ctx, viewport: vp });
+      const task = page.render({ canvasContext: canvas.getContext("2d"), viewport: vp });
       renderTaskRef.current = task;
       try { await task.promise; } catch {}
     }
@@ -197,159 +198,142 @@ function PageCanvas({
 
   const getRelPos = (e, el) => {
     const r = el.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    return { x: (clientX - r.left) / r.width, y: (clientY - r.top) / r.height };
+    const cx = e.touches ? e.touches[0].clientX : e.clientX;
+    const cy = e.touches ? e.touches[0].clientY : e.clientY;
+    return { x: (cx - r.left) / r.width, y: (cy - r.top) / r.height };
   };
 
   const handleStart = (e) => {
     if (mode === "select" || mode === "bookmark" || isLocked) return;
-    if (e.touches && e.touches.length > 1) return; // allow pinch-zoom
+    if (e.touches && e.touches.length > 1) return;
     e.preventDefault();
     const pos = getRelPos(e, e.currentTarget);
-    
-    // For remove mode, handle single clicks/taps immediately
-    if (mode === "remove") {
-      const rect = { x: pos.x - 0.01, y: pos.y - 0.01, w: 0.02, h: 0.02 };
-      onRemoveHighlight(pageNum, rect);
-      return;
-    }
-    
+    if (mode === "remove") { onRemoveHighlight(pageNum, { x: pos.x - 0.01, y: pos.y - 0.01, w: 0.02, h: 0.02 }); return; }
     setDragStart(pos); setDragging(true); setDragRect(null);
   };
   const handleMove = (e) => {
     if (!dragging || !dragStart) return;
     const pos = getRelPos(e, e.currentTarget);
-    setDragRect({
-      x: Math.min(dragStart.x, pos.x), y: Math.min(dragStart.y, pos.y),
-      w: Math.abs(pos.x - dragStart.x), h: Math.abs(pos.y - dragStart.y),
-    });
+    setDragRect({ x: Math.min(dragStart.x, pos.x), y: Math.min(dragStart.y, pos.y), w: Math.abs(pos.x - dragStart.x), h: Math.abs(pos.y - dragStart.y) });
   };
   const handleEnd = (e) => {
     if (!dragging || !dragStart) return;
     setDragging(false);
-    const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
-    const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
-    const el = e.currentTarget;
-    const r = el.getBoundingClientRect();
-    const pos = { x: (clientX - r.left) / r.width, y: (clientY - r.top) / r.height };
-    const rect = {
-      x: Math.min(dragStart.x, pos.x), y: Math.min(dragStart.y, pos.y),
-      w: Math.abs(pos.x - dragStart.x), h: Math.abs(pos.y - dragStart.y),
-    };
+    const cx = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+    const cy = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+    const r = e.currentTarget.getBoundingClientRect();
+    const pos = { x: (cx - r.left) / r.width, y: (cy - r.top) / r.height };
+    const rect = { x: Math.min(dragStart.x, pos.x), y: Math.min(dragStart.y, pos.y), w: Math.abs(pos.x - dragStart.x), h: Math.abs(pos.y - dragStart.y) };
     setDragRect(null); setDragStart(null);
     if (rect.w < 0.01 || rect.h < 0.005) return;
     if (mode === "highlight") onHighlight(pageNum, rect, hlColor);
-    if (mode === "note") onNote(pageNum, rect, clientX, clientY, hlColor);
+    if (mode === "note") onNote(pageNum, rect, cx, cy, hlColor);
     if (mode === "remove") onRemoveHighlight(pageNum, rect);
   };
 
   const pageHls = highlights.filter(h => h.page === pageNum);
 
-  // ── LOCKED PAGE: minimal compact placeholder — not a full rendered page ────
+  // ── LOCKED PAGE ───────────────────────────────────────────────────────────
   if (isLocked) {
+    const chapter = getChapterForPage(pageNum);
+    const isChapterUnlocked = chapter && unlockedChapters.has(chapter.chapter_number);
+    const canAffordChapter = walletBalance >= 30;
+
     return (
-      <div
-        ref={wrapRef}
-        style={{
-          position: "relative",
-          flexShrink: 0,
-          borderRadius: 6,
-          overflow: "hidden",
-          boxShadow: "0 2px 12px rgba(0,0,0,0.3)",
-          width: "100%",
-          maxWidth: isMobile ? "100%" : 680,
-          // Compact height — just enough to show the lock UI, not a full page
-          minHeight: isMobile ? 200 : 240,
-          background: isLight
-            ? "linear-gradient(160deg, #f0ece4 0%, #e8e0d0 100%)"
-            : "linear-gradient(160deg, #111 0%, #0a0a0a 100%)",
-          border: `1px solid ${isLight ? "#ddd" : "rgba(34,197,94,0.12)"}`,
-        }}
-      >
-        {/* Subtle diagonal stripe */}
+      <div ref={wrapRef} style={{
+        position: "relative", flexShrink: 0,
+        borderRadius: 8, overflow: "hidden",
+        width: "100%", maxWidth: isMobile ? "100%" : 680,
+        minHeight: isMobile ? 160 : 180,
+        background: "linear-gradient(135deg, #111 0%, #0d0d0d 100%)",
+        border: "1px solid rgba(255,255,255,0.06)",
+        boxShadow: "0 4px 24px rgba(0,0,0,0.4)",
+      }}>
+        {/* Subtle grid texture */}
         <div style={{
           position: "absolute", inset: 0, opacity: 0.03,
-          backgroundImage: `repeating-linear-gradient(45deg, ${TOKENS.amber} 0px, ${TOKENS.amber} 1px, transparent 1px, transparent 32px)`,
+          backgroundImage: `linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)`,
+          backgroundSize: "40px 40px",
         }} />
 
         <div style={{
           position: "relative",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          flexDirection: "row",
+          display: "flex", alignItems: "center",
           gap: isMobile ? 12 : 20,
-          padding: isMobile ? "20px 16px" : "28px 32px",
-          height: "100%",
-          minHeight: "inherit",
+          padding: isMobile ? "18px 16px" : "24px 28px",
+          height: "100%", minHeight: "inherit",
         }}>
-          {/* Lock badge */}
+          {/* Lock icon */}
           <div style={{
-            width: isMobile ? 40 : 48,
-            height: isMobile ? 40 : 48,
-            borderRadius: "50%",
-            background: "rgba(34,197,94,0.08)",
-            border: `1px solid ${TOKENS.borderLight}`,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            flexShrink: 0,
+            width: isMobile ? 36 : 44, height: isMobile ? 36 : 44, borderRadius: "50%",
+            background: T.greenDim, border: `1px solid ${T.greenBorder}`,
+            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
           }}>
-            <Icon d={ICONS.lock} size={isMobile ? 18 : 22} />
+            <Icon d={ICONS.lock} size={isMobile ? 16 : 20} />
           </div>
 
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{
-              fontSize: isMobile ? 10 : 11,
-              color: isLight ? TOKENS.warmGray : "rgba(255,255,255,0.35)",
-              letterSpacing: "0.12em", textTransform: "uppercase",
-              fontFamily: "monospace", marginBottom: 4,
-            }}>
+            <div style={{ fontSize: 9, color: T.chromeMuted, letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "monospace", marginBottom: 3 }}>
               Page {pageNum} · Locked
             </div>
-            <div style={{
-              fontSize: isMobile ? 13 : 15,
-              color: isLight ? TOKENS.inkBrown : "rgba(255,255,255,0.7)",
-              fontFamily: "'Georgia', serif", fontStyle: "italic",
-              marginBottom: 10,
-            }}>
+            <div style={{ fontSize: isMobile ? 12 : 14, color: "rgba(255,255,255,0.6)", fontFamily: "'Georgia', serif", fontStyle: "italic", marginBottom: 10 }}>
               Unlock to continue reading
             </div>
-            <button
-              onClick={() => onUnlockPage(pageNum)}
-              style={{
-                padding: isMobile ? "7px 14px" : "8px 18px",
-                background: canAfford
-                  ? "linear-gradient(135deg, #16a34a, #22c55e)"
-                  : "rgba(255,255,255,0.06)",
-                border: `1px solid ${canAfford ? TOKENS.rustLight : TOKENS.borderLight}`,
-                borderRadius: 6,
-                color: canAfford ? "#fff" : TOKENS.dimText,
-                fontSize: isMobile ? 11 : 12,
-                fontFamily: "'Georgia', serif",
-                letterSpacing: "0.03em",
-                cursor: canAfford ? "pointer" : "not-allowed",
-                transition: "all 0.2s ease",
-                display: "flex", alignItems: "center", gap: 6,
-              }}
-            >
-              <span style={{ fontSize: isMobile ? 11 : 12, color: TOKENS.amber }}>◆</span>
-              {canAfford ? `Unlock — ${perPageCost} coins` : `Need ${perPageCost} coins`}
-            </button>
+
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button onClick={() => onUnlockPage(pageNum)} style={{
+                padding: isMobile ? "5px 12px" : "6px 14px",
+                background: canAfford ? `linear-gradient(135deg, ${T.greenDeep}, ${T.green})` : "rgba(255,255,255,0.05)",
+                border: `1px solid ${canAfford ? T.greenBorder : "rgba(255,255,255,0.08)"}`,
+                borderRadius: 6, color: canAfford ? "#fff" : T.chromeMuted,
+                fontSize: isMobile ? 10 : 11, fontFamily: "'Georgia', serif",
+                letterSpacing: "0.03em", cursor: canAfford ? "pointer" : "not-allowed",
+                transition: "all 0.15s ease", display: "flex", alignItems: "center", gap: 5,
+              }}>
+                <Icon d={ICONS.unlock} size={11} />
+                <span>{perPageCost} coins</span>
+              </button>
+
+              {chapter && !chapter.is_free && !isChapterUnlocked && (
+                <button onClick={() => {
+                  if (!canAffordChapter) { toast("Insufficient balance (30 coins)"); return; }
+                  onUnlockChapter(chapter.chapter_number).then(success => {
+                    if (success) {
+                      setCurrentPage(pageNum); setPageInput(String(pageNum));
+                      setProgress(((pageNum - 1) / Math.max(1, totalPages - 1)) * 100);
+                      const el = pageRefs.current[pageNum];
+                      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }
+                  });
+                }} style={{
+                  padding: isMobile ? "5px 12px" : "6px 14px",
+                  background: canAffordChapter ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.05)",
+                  border: `1px solid ${canAffordChapter ? "rgba(59,130,246,0.35)" : "rgba(255,255,255,0.08)"}`,
+                  borderRadius: 6, color: canAffordChapter ? "#93c5fd" : T.chromeMuted,
+                  fontSize: isMobile ? 10 : 11, fontFamily: "'Georgia', serif",
+                  cursor: canAffordChapter ? "pointer" : "not-allowed",
+                  display: "flex", alignItems: "center", gap: 5,
+                }}>
+                  <Icon d={ICONS.bookmark} size={11} />
+                  <span>Chapter · 30 coins</span>
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Balance pill */}
-          <div style={{
-            display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
-            padding: "8px 12px",
-            background: isLight ? "rgba(0,0,0,0.04)" : "rgba(255,255,255,0.04)",
-            border: `1px solid ${isLight ? "#ddd" : TOKENS.borderLight}`,
-            borderRadius: 8, flexShrink: 0,
-            display: isMobile ? "none" : "flex",
-          }}>
-            <span style={{ color: TOKENS.amber, fontSize: 16 }}>◆</span>
-            <span style={{ fontFamily: "monospace", fontSize: 13, color: isLight ? TOKENS.inkBrown : "rgba(255,255,255,0.6)" }}>
-              {walletBalance}
-            </span>
-            <span style={{ fontSize: 9, color: TOKENS.warmGray, letterSpacing: "0.08em" }}>coins</span>
-          </div>
+          {/* Coin balance pill */}
+          {!isMobile && (
+            <div style={{
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 1,
+              padding: "8px 12px",
+              background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)",
+              borderRadius: 8, flexShrink: 0,
+            }}>
+              <span style={{ color: T.green, fontSize: 14 }}>◆</span>
+              <span style={{ fontFamily: "monospace", fontSize: 13, color: "rgba(255,255,255,0.55)" }}>{walletBalance}</span>
+              <span style={{ fontSize: 8, color: T.chromeMuted, letterSpacing: "0.1em" }}>COINS</span>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -357,164 +341,113 @@ function PageCanvas({
 
   // ── UNLOCKED PAGE ─────────────────────────────────────────────────────────
   return (
-    <div
-      ref={wrapRef}
-      style={{
-        position: "relative",
-        flexShrink: 0,
-        borderRadius: 3,
-        overflow: "hidden",
-        boxShadow: "0 8px 40px rgba(0,0,0,0.65), 0 2px 8px rgba(0,0,0,0.3)",
-        background: isLight ? "#000" : "#fff",
-        // Let width be determined by canvas content, but never exceed viewport
-        maxWidth: "100%",
-        width: dims.w ? Math.min(dims.w, isMobile ? window.innerWidth - 24 : 9999) : "auto",
-        height: dims.h || "auto",
-        transition: "box-shadow 0.2s ease",
-      }}
-    >
+    <div ref={wrapRef} style={{
+      position: "relative", flexShrink: 0, borderRadius: 2,
+      overflow: "hidden",
+      boxShadow: isLight
+        ? "0 8px 40px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.15)"
+        : "0 8px 48px rgba(0,0,0,0.7), 0 2px 10px rgba(0,0,0,0.4)",
+      maxWidth: "100%",
+      width: dims.w ? Math.min(dims.w, isMobile ? window.innerWidth - 24 : 9999) : "auto",
+      height: dims.h || "auto",
+    }}>
       <div style={{ position: "relative", overflow: "hidden" }}>
-        <canvas
-          ref={canvasRef}
-          style={{
-            display: "block",
-            maxWidth: "100%",
-            filter: isLight ? "none" : "invert(1) hue-rotate(180deg)",
-          }}
-        />
+        <canvas ref={canvasRef} style={{
+          display: "block", maxWidth: "100%",
+          // Light theme only inverts the PDF canvas — chrome stays dark
+          filter: isLight ? "invert(1) hue-rotate(180deg)" : "none",
+          background: isLight ? "#fff" : "#000",
+        }} />
 
-        {/* Highlights */}
         {pageHls.map(hl => (
-          <div
-            key={hl.id}
-            title={hl.note || ""}
-            style={{
-              position: "absolute",
-              background: HL_COLORS[hl.color] || HL_COLORS.yellow,
-              mixBlendMode: isLight ? "multiply" : "screen",
-              borderRadius: 2, cursor: "pointer",
-              left: `${hl.x * 100}%`, top: `${hl.y * 100}%`,
-              width: `${hl.w * 100}%`, height: `${hl.h * 100}%`,
-              transition: "opacity 0.15s",
-              filter: isLight ? "none" : "invert(1) hue-rotate(180deg)",
-            }}
-          />
+          <div key={hl.id} title={hl.note || ""} style={{
+            position: "absolute",
+            background: HL_COLORS[hl.color] || HL_COLORS.yellow,
+            mixBlendMode: "multiply", borderRadius: 2, cursor: "pointer",
+            left: `${hl.x * 100}%`, top: `${hl.y * 100}%`,
+            width: `${hl.w * 100}%`, height: `${hl.h * 100}%`,
+            // Highlights also invert in light mode to look right on inverted canvas
+            filter: isLight ? "invert(1) hue-rotate(180deg)" : "none",
+          }} />
         ))}
 
-        {/* Completed page indicator */}
         {isCompleted && isPageUnlocked && (
-          <div style={{
-            position: "absolute",
-            top: 10,
-            right: 10,
+          <div onClick={onMarkCompleted} style={{
+            position: "absolute", top: 10, right: 10,
             background: "linear-gradient(135deg, #22c55e, #16a34a)",
-            color: "#fff",
-            padding: "6px 12px",
-            borderRadius: 20,
-            fontSize: 11,
-            fontFamily: "'Jost', sans-serif",
-            fontWeight: 600,
-            boxShadow: "0 2px 8px rgba(34,197,94,0.4)",
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            cursor: "pointer",
-            transition: "all 0.2s ease",
-            filter: isLight ? "none" : "invert(1) hue-rotate(180deg)",
-          }} onClick={onMarkCompleted}>
-            <span>✓</span>
-            <span>Completed</span>
+            color: "#fff", padding: "5px 11px", borderRadius: 20,
+            fontSize: 10, fontFamily: "monospace", fontWeight: 600,
+            letterSpacing: "0.05em", textTransform: "uppercase",
+            boxShadow: "0 2px 10px rgba(34,197,94,0.45)",
+            display: "flex", alignItems: "center", gap: 4, cursor: "pointer",
+            filter: isLight ? "invert(1) hue-rotate(180deg)" : "none",
+          }}>
+            <Icon d={ICONS.check} size={10} /><span>Done</span>
           </div>
         )}
 
-        {/* Drag preview */}
         {dragging && dragRect && (
           <div style={{
             position: "absolute",
             left: `${dragRect.x * 100}%`, top: `${dragRect.y * 100}%`,
             width: `${dragRect.w * 100}%`, height: `${dragRect.h * 100}%`,
-            border: `1.5px dashed ${TOKENS.rust}`,
-            background: "rgba(34,197,94,0.07)",
+            border: `1.5px dashed ${T.green}`, background: "rgba(34,197,94,0.06)",
             pointerEvents: "none", zIndex: 5, borderRadius: 2,
           }} />
         )}
       </div>
 
-      {/* Interaction overlay — supports both mouse and touch */}
-      <div
-        style={{
-          position: "absolute", inset: 0,
-          cursor: mode === "select" ? "default"
-            : mode === "highlight" ? "crosshair"
-            : mode === "note" ? "cell"
-            : "pointer",
-          userSelect: "none",
-          touchAction: mode === "select" || mode === "bookmark" ? "auto" : "none",
-        }}
-        onMouseDown={handleStart}
-        onMouseMove={handleMove}
-        onMouseUp={handleEnd}
-        onTouchStart={handleStart}
-        onTouchMove={handleMove}
-        onTouchEnd={handleEnd}
+      <div style={{
+        position: "absolute", inset: 0,
+        cursor: mode === "select" ? "default" : mode === "highlight" ? "crosshair" : mode === "note" ? "cell" : "pointer",
+        userSelect: "none",
+        touchAction: mode === "select" || mode === "bookmark" ? "auto" : "none",
+      }}
+        onMouseDown={handleStart} onMouseMove={handleMove} onMouseUp={handleEnd}
+        onTouchStart={handleStart} onTouchMove={handleMove} onTouchEnd={handleEnd}
         onClick={() => mode === "bookmark" && onBookmark(pageNum)}
       />
 
-      {/* Unlock CTA — gradient fade at bottom of last free page */}
+      {/* Unlock CTA */}
       {showUnlockCTA && (
         <div style={{
           position: "absolute", bottom: 0, left: 0, right: 0,
-          background: "linear-gradient(180deg, transparent 0%, rgba(10,10,10,0.95) 40%, #0a0a0a 100%)",
-          padding: isMobile ? "48px 16px 24px" : "80px 40px 40px",
-          textAlign: "center", pointerEvents: "none", zIndex: 10,
+          background: "linear-gradient(180deg, transparent 0%, rgba(8,8,8,0.97) 45%, #080808 100%)",
+          padding: isMobile ? "52px 18px 28px" : "80px 48px 44px",
+          textAlign: "center", zIndex: 10,
+          filter: isLight ? "invert(1) hue-rotate(180deg)" : "none",
         }}>
-          <div style={{ position: "relative", zIndex: 1, pointerEvents: "auto" }}>
+          <div style={{ zIndex: 1 }}>
             <div style={{
-              width: isMobile ? 44 : 56, height: isMobile ? 44 : 56,
-              borderRadius: "50%",
-              background: "rgba(34,197,94,0.1)",
-              border: `1.5px solid ${TOKENS.border}`,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              margin: "0 auto 12px",
+              width: isMobile ? 40 : 52, height: isMobile ? 40 : 52, borderRadius: "50%",
+              background: T.greenDim, border: `1.5px solid ${T.greenBorder}`,
+              display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px",
             }}>
-              <Icon d={ICONS.lock} size={isMobile ? 20 : 26} />
+              <Icon d={ICONS.lock} size={isMobile ? 18 : 24} />
             </div>
-
-            <div style={{ fontSize: isMobile ? 15 : 18, color: TOKENS.bodyText, fontFamily: "'Georgia', serif", fontStyle: "italic", marginBottom: 6 }}>
+            <div style={{ fontSize: isMobile ? 15 : 18, color: "#fff", fontFamily: "'Georgia', serif", fontStyle: "italic", marginBottom: 6 }}>
               Continue Reading
             </div>
-            <div style={{ fontSize: isMobile ? 11 : 13, color: TOKENS.subtleText, marginBottom: 16, lineHeight: 1.6 }}>
+            <div style={{ fontSize: isMobile ? 11 : 13, color: "rgba(255,255,255,0.55)", marginBottom: 16, lineHeight: 1.6 }}>
               Unlock the next page to keep reading
             </div>
-
             <div style={{
               display: "inline-flex", alignItems: "center", gap: 5,
-              padding: "4px 10px",
-              background: "rgba(255,255,255,0.05)",
-              border: `1px solid ${TOKENS.border}`,
-              borderRadius: 14, fontSize: 11, color: TOKENS.warmGray, marginBottom: 12, fontFamily: "monospace",
+              padding: "4px 10px", background: "rgba(255,255,255,0.05)",
+              border: `1px solid ${T.greenBorder}`, borderRadius: 14,
+              fontSize: 11, color: T.chromeMuted, marginBottom: 12, fontFamily: "monospace",
             }}>
-              <span style={{ color: TOKENS.amber, fontSize: 12 }}>◆</span>
-              {walletBalance} coins
+              <span style={{ color: T.green, fontSize: 12 }}>◆</span>{walletBalance} coins
             </div>
-
-            <button
-              onClick={() => onUnlockPage(pageNum + 1)}
-              style={{
-                display: "block", width: "100%",
-                padding: isMobile ? "10px 14px" : "12px 20px",
-                background: canAfford
-                  ? "linear-gradient(135deg, #16a34a 0%, #22c55e 100%)"
-                  : "rgba(255,255,255,0.06)",
-                border: `1px solid ${canAfford ? TOKENS.rustLight : TOKENS.borderLight}`,
-                borderRadius: 6,
-                color: canAfford ? "#fff" : TOKENS.dimText,
-                fontSize: isMobile ? 12 : 13,
-                fontFamily: "'Georgia', serif",
-                cursor: canAfford ? "pointer" : "not-allowed",
-                transition: "all 0.2s ease",
-              }}
-            >
+            <button onClick={() => onUnlockPage(pageNum + 1)} style={{
+              display: "block", width: "100%",
+              padding: isMobile ? "10px 14px" : "12px 20px",
+              background: canAfford ? `linear-gradient(135deg, ${T.greenDeep} 0%, ${T.green} 100%)` : "rgba(255,255,255,0.06)",
+              border: `1px solid ${canAfford ? T.greenLight : "rgba(255,255,255,0.08)"}`,
+              borderRadius: 6, color: canAfford ? "#fff" : T.chromeMuted,
+              fontSize: isMobile ? 12 : 13, fontFamily: "'Georgia', serif",
+              cursor: canAfford ? "pointer" : "not-allowed", transition: "all 0.2s ease",
+            }}>
               {canAfford ? `Unlock Page ${pageNum + 1} — ${perPageCost} coins` : `Need ${perPageCost - walletBalance} more coins`}
             </button>
           </div>
@@ -527,7 +460,7 @@ function PageCanvas({
 // ─── ThumbnailStrip ───────────────────────────────────────────────────────────
 function ThumbnailStrip({ pdf, totalPages, currentPage, onGoTo }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
       {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
         <ThumbnailItem key={n} pdf={pdf} pageNum={n} active={n === currentPage} onGoTo={onGoTo} />
       ))}
@@ -538,7 +471,7 @@ function ThumbnailStrip({ pdf, totalPages, currentPage, onGoTo }) {
 function ThumbnailItem({ pdf, pageNum, active, onGoTo }) {
   const ref = useRef(null);
   const [rendered, setRendered] = useState(false);
-  const [hovered, setHovered] = useState(false);
+  const [hov, setHov] = useState(false);
 
   useEffect(() => {
     if (!pdf || rendered) return;
@@ -560,26 +493,23 @@ function ThumbnailItem({ pdf, pageNum, active, onGoTo }) {
   }, [pdf, pageNum, rendered]);
 
   return (
-    <div
-      onClick={() => onGoTo(pageNum)}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+    <div onClick={() => onGoTo(pageNum)}
+      onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
       style={{
         cursor: "pointer", borderRadius: 4, overflow: "hidden",
-        border: `2px solid ${active ? TOKENS.rust : hovered ? TOKENS.parchmentDim : "transparent"}`,
-        background: "#fff",
-        boxShadow: active ? "0 2px 12px rgba(22,163,74,0.35)" : hovered ? "0 2px 8px rgba(0,0,0,0.15)" : "0 1px 4px rgba(0,0,0,0.1)",
-        transition: "all 0.15s ease",
-        transform: hovered && !active ? "translateX(2px)" : "none",
-      }}
-    >
+        border: `1.5px solid ${active ? T.green : hov ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.05)"}`,
+        background: "#1a1a1a",
+        boxShadow: active ? `0 0 0 1px ${T.greenBorder}, 0 2px 12px rgba(34,197,94,0.2)` : hov ? "0 2px 8px rgba(0,0,0,0.2)" : "none",
+        transition: "all 0.14s ease",
+        transform: hov && !active ? "translateX(1px)" : "none",
+      }}>
       <canvas ref={ref} style={{ width: "100%", display: "block" }} />
       <div style={{
-        textAlign: "center", fontSize: 9, padding: "3px 0",
-        color: active ? TOKENS.rust : TOKENS.warmGray,
-        fontFamily: "monospace", letterSpacing: "0.06em",
-        background: active ? TOKENS.parchmentMid : TOKENS.parchment,
-        transition: "all 0.15s",
+        textAlign: "center", fontSize: 8, padding: "3px 0",
+        color: active ? T.green : T.chromeMuted,
+        fontFamily: "monospace", letterSpacing: "0.08em",
+        background: active ? "rgba(34,197,94,0.1)" : "rgba(255,255,255,0.03)",
+        transition: "all 0.14s",
       }}>
         {pageNum}
       </div>
@@ -589,22 +519,20 @@ function ThumbnailItem({ pdf, pageNum, active, onGoTo }) {
 
 function EmptyState({ icon, text }) {
   return (
-    <div style={{ textAlign: "center", padding: "32px 16px", color: TOKENS.warmGray }}>
-      <div style={{ fontSize: 28, marginBottom: 10, opacity: 0.5 }}>{icon}</div>
-      <div style={{ fontSize: 12, fontStyle: "italic", lineHeight: 1.7, opacity: 0.8 }}>{text}</div>
+    <div style={{ textAlign: "center", padding: "28px 14px", color: T.chromeMuted }}>
+      <div style={{ fontSize: 24, marginBottom: 10, opacity: 0.4 }}>{icon}</div>
+      <div style={{ fontSize: 11, fontStyle: "italic", lineHeight: 1.8, whiteSpace: "pre-line", opacity: 0.75 }}>{text}</div>
     </div>
   );
 }
 
-function Spinner({ size = 32, color = TOKENS.rust }) {
+function Spinner({ size = 28, color = T.green }) {
   return (
     <div style={{
       width: size, height: size,
-      border: "2.5px solid rgba(255,255,255,0.08)",
-      borderTopColor: color,
-      borderRadius: "50%",
-      animation: "pdfrSpin 0.75s linear infinite",
-      flexShrink: 0,
+      border: "2px solid rgba(255,255,255,0.06)",
+      borderTopColor: color, borderRadius: "50%",
+      animation: "pdfrSpin 0.7s linear infinite", flexShrink: 0,
     }} />
   );
 }
@@ -622,20 +550,20 @@ export default function PDFReader() {
     return p.get("preview") === "true" || p.get("mode") === "preview";
   }, []);
 
-  const [theme, setTheme] = useState(() => {
-    try { return localStorage.getItem("dkituyiacademy-theme") || "dark"; } catch { return "dark"; }
+  // pdfTheme only controls the PDF canvas — sidebar/chrome is always dark
+  const [pdfTheme, setPdfTheme] = useState(() => {
+    try { return localStorage.getItem("dkituyiacademy-pdf-theme") || "dark"; } catch { return "dark"; }
   });
-  const toggleTheme = useCallback(() => {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    try { localStorage.setItem("dkituyiacademy-theme", next); } catch {}
-  }, [theme]);
+  const togglePdfTheme = useCallback(() => {
+    const next = pdfTheme === "dark" ? "light" : "dark";
+    setPdfTheme(next);
+    try { localStorage.setItem("dkituyiacademy-pdf-theme", next); } catch {}
+  }, [pdfTheme]);
 
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
   const [renderKey, setRenderKey] = useState(0);
-  
-  // Mobile gesture state
+
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
   const [lastTap, setLastTap] = useState(null);
@@ -646,8 +574,7 @@ export default function PDFReader() {
   useEffect(() => {
     const handle = () => {
       const w = window.innerWidth;
-      setIsMobile(w < 768);
-      setIsTablet(w >= 768 && w < 1024);
+      setIsMobile(w < 768); setIsTablet(w >= 768 && w < 1024);
       setSidebarOpen(w >= 768);
     };
     handle();
@@ -655,25 +582,19 @@ export default function PDFReader() {
     return () => window.removeEventListener("resize", handle);
   }, []);
 
-  // Cleanup mobile gesture timers on unmount
-  useEffect(() => {
-    return () => {
-      if (longPressTimer) {
-        clearTimeout(longPressTimer);
-      }
-    };
-  }, [longPressTimer]);
+  useEffect(() => () => { if (longPressTimer) clearTimeout(longPressTimer); }, [longPressTimer]);
 
   const [book, setBook] = useState(null);
   const [walletBalance, setWalletBalance] = useState(0);
   const [unlockedPages, setUnlockedPages] = useState(new Set());
+  const [chapters, setChapters] = useState([]);
+  const [unlockedChapters, setUnlockedChapters] = useState(new Set());
   const [showUnlockPrompt, setShowUnlockPrompt] = useState(false);
   const [pendingPage, setPendingPage] = useState(null);
   const [perPageCost, setPerPageCost] = useState(0);
   const [unlockLoading, setUnlockLoading] = useState(false);
   const [bulkUnlockCount, setBulkUnlockCount] = useState(1);
   const [showBulkUnlock, setShowBulkUnlock] = useState(false);
-
   const [pdf, setPdf] = useState(null);
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
@@ -713,35 +634,227 @@ export default function PDFReader() {
   useEffect(() => { try { localStorage.setItem(`lmn_notes_${bookId}`, JSON.stringify(notes)); } catch {} }, [notes, bookId]);
   useEffect(() => { try { localStorage.setItem(`lmn_hl_${bookId}`, JSON.stringify(highlights)); } catch {} }, [highlights, bookId]);
 
-  // Mark page as completed function
   const markPageCompleted = async (pageNum) => {
     try {
-      const res = await api.post('/api/reader/features/mark_completed/', {
-        book_id: bookId,
-        page_number: pageNum
-      });
-      
+      const res = await api.post('/api/reader/features/mark_completed/', { book_id: bookId, page_number: pageNum });
       if (res.data.message) {
         setCompletedPages(prev => new Set([...prev, pageNum]));
         toast(`Page ${pageNum} marked as completed!`);
-        
-        // Update progress
-        const progressPercent = ((pageNum) / Math.max(1, totalPages - 1)) * 100;
-        setProgress(progressPercent);
+        setProgress(((pageNum) / Math.max(1, totalPages - 1)) * 100);
       }
-    } catch (error) {
-      console.error('Failed to mark page as completed:', error);
-      toast('Failed to mark page as completed');
-    }
+    } catch { toast('Failed to mark page as completed'); }
   };
 
-  const loadUnlockedPages = async () => {
+  const loadUnlockedPages = useCallback(async () => {
     if (isPreviewMode()) { setUnlockedPages(new Set()); return true; }
     try {
+      console.log(`DEBUG: Loading unlocked pages for book ${bookId}`);
       const r = await api.get(`/api/reader/features/unlocked_pages/${bookId}/`);
+      console.log(`DEBUG: Unlocked pages API response:`, r.data);
       setUnlockedPages(new Set(r.data.unlocked_pages || []));
+      if (r.data.chapter_unlocked) setUnlockedChapters(new Set(r.data.chapter_unlocked));
       return true;
-    } catch { setUnlockedPages(new Set()); return false; }
+    } catch (error) {
+      console.error(`DEBUG: Failed to load unlocked pages:`, error);
+      console.log(`DEBUG: Error details:`, error.response?.data);
+      
+      // Fallback: Try to get at least page-based unlocks directly
+      try {
+        console.log(`DEBUG: Trying fallback approach...`);
+        // For now, set empty to show all pages as locked except free preview
+        // This ensures the unlock logic works correctly
+        setUnlockedPages(new Set());
+        return false;
+      } catch (fallbackError) {
+        console.error(`DEBUG: Fallback also failed:`, fallbackError);
+        setUnlockedPages(new Set());
+        return false;
+      }
+    }
+  }, [isPreviewMode, bookId]);
+
+  const loadChapters = useCallback(async () => {
+    if (isPreviewMode()) { setChapters([]); return; }
+    try {
+      const r = await api.get(`/api/reader/books/${bookId}/chapters/`);
+      console.log(`DEBUG: Chapters API response:`, r.data);
+      console.log(`DEBUG: Chapters array:`, r.data.chapters);
+      if (r.data.chapters && r.data.chapters.length > 0) {
+        console.log(`DEBUG: First chapter structure:`, r.data.chapters[0]);
+        console.log(`DEBUG: First chapter page_range:`, r.data.chapters[0].page_range);
+      }
+      setChapters(r.data.chapters || []);
+      const unlocked = new Set();
+      r.data.chapters.forEach(c => { 
+        if (c.is_unlocked) unlocked.add(c.chapter_number); 
+      });
+      setUnlockedChapters(unlocked);
+      console.log(`DEBUG: Loaded ${r.data.chapters?.length || 0} chapters, unlocked: ${Array.from(unlocked)}`);
+    } catch { toast('Failed to load chapters'); }
+  }, [isPreviewMode, bookId]);
+
+  const getChapterForPage = (pn) => {
+    if (!chapters.length) {
+      console.log(`DEBUG: getChapterForPage(${pn}) - no chapters loaded`);
+      return null;
+    }
+    const chapter = chapters.find(c => c.page_range?.start <= pn && c.page_range?.end >= pn);
+    console.log(`DEBUG: getChapterForPage(${pn}) - found chapter:`, chapter?.chapter_number, chapter?.title);
+    return chapter;
+  };
+
+  const getChapterUnlockOptions = () => {
+    const chapter = getChapterForPage(pendingPage);
+    if (!chapter || unlockedChapters.has(chapter.chapter_number) || chapter.is_free) return [];
+    return [chapter];
+  };
+
+  // UnlockModal — always dark regardless of pdfTheme
+  const UnlockModal = () => {
+    const freePages = Math.max(1, Math.ceil((totalPages * 0.2) || 1));
+    const isFreePage = pendingPage <= freePages;
+    const canAffordPage = walletBalance >= perPageCost;
+    const canAffordChapter = walletBalance >= 30;
+    const chapterOptions = getChapterUnlockOptions();
+    const currentChapter = getChapterForPage(pendingPage);
+
+    return (
+      <div style={{
+        position: "fixed", inset: 0, zIndex: 2000,
+        background: "rgba(0,0,0,0.88)", backdropFilter: "blur(12px)",
+        display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+      }}>
+        <div style={{
+          background: "#111", border: "1px solid rgba(255,255,255,0.1)",
+          borderRadius: 16, padding: isMobile ? 24 : 40,
+          width: "100%", maxWidth: 480,
+          boxShadow: "0 32px 80px rgba(0,0,0,0.7)",
+        }}>
+          <div style={{
+            width: 56, height: 56, borderRadius: "50%",
+            background: T.greenDim, border: `1px solid ${T.greenBorder}`,
+            display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px",
+          }}>
+            <Icon d={ICONS.lock} size={24} />
+          </div>
+          <h2 style={{ textAlign: "center", margin: "0 0 10px", fontSize: isMobile ? 20 : 22, fontFamily: "'Georgia', serif", fontStyle: "italic", color: "#fff" }}>
+            {isPreviewMode() && !isFreePage ? "Preview Complete" : isFreePage ? "Free Preview" : "Unlock Content"}
+          </h2>
+          <p style={{ textAlign: "center", margin: "0 0 24px", fontSize: 13, color: T.chromeMuted, lineHeight: 1.75 }}>
+            {isPreviewMode() && !isFreePage
+              ? `You've reached the end of your free preview (${freePages} pages). Sign up to continue.`
+              : isFreePage
+                ? `Page ${pendingPage} is part of your free preview (first ${freePages} pages).`
+                : currentChapter
+                  ? `Page ${pendingPage} · Chapter ${currentChapter.chapter_number}: "${currentChapter.title}"`
+                  : `Unlock page ${pendingPage} for ${perPageCost} coins. Balance: ${walletBalance} coins.`}
+          </p>
+
+          {chapterOptions.length > 0 && !isFreePage && (
+            <div style={{ marginBottom: 16, padding: 16, background: "rgba(34,197,94,0.06)", border: `1px solid ${T.greenBorder}`, borderRadius: 10 }}>
+              <div style={{ fontSize: 11, color: T.green, letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: "monospace", marginBottom: 8 }}>Unlock Entire Chapter</div>
+              <p style={{ margin: "0 0 12px", fontSize: 12, color: T.chromeMuted, lineHeight: 1.6 }}>
+                All {chapterOptions[0].pages_count} pages in this chapter · 30 coins
+              </p>
+              <button onClick={async () => {
+                const success = await unlockChapter(chapterOptions[0].chapter_number);
+                if (success) {
+                  setShowUnlockPrompt(false); setPendingPage(null);
+                  setCurrentPage(pendingPage); setPageInput(String(pendingPage));
+                  setProgress(((pendingPage - 1) / Math.max(1, totalPages - 1)) * 100);
+                  const el = pageRefs.current[pendingPage];
+                  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                }
+              }} disabled={unlockLoading || !canAffordChapter} style={{
+                width: "100%", padding: "9px 0",
+                background: unlockLoading ? `${T.greenDeep}99` : canAffordChapter ? `linear-gradient(135deg, ${T.greenDeep}, ${T.green})` : "rgba(255,255,255,0.06)",
+                border: `1px solid ${canAffordChapter ? T.greenBorder : "rgba(255,255,255,0.08)"}`,
+                borderRadius: 8, fontSize: 13, cursor: unlockLoading || !canAffordChapter ? "not-allowed" : "pointer",
+                color: canAffordChapter ? "#fff" : T.chromeMuted, fontFamily: "'Georgia', serif",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              }}>
+                {unlockLoading && <Spinner size={13} color="#fff" />}
+                {unlockLoading ? "Unlocking…" : `Unlock Chapter ${chapterOptions[0].chapter_number}`}
+              </button>
+            </div>
+          )}
+
+          {!isFreePage && (
+            <div style={{ marginBottom: 20, padding: 16, background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.2)", borderRadius: 10 }}>
+              <div style={{ fontSize: 11, color: "#93c5fd", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: "monospace", marginBottom: 8 }}>Single Page</div>
+              <p style={{ margin: "0 0 12px", fontSize: 12, color: T.chromeMuted, lineHeight: 1.6 }}>
+                Unlock just this page · {perPageCost} coins
+              </p>
+              <button onClick={handleModalUnlock} disabled={unlockLoading || !canAffordPage} style={{
+                width: "100%", padding: "9px 0",
+                background: unlockLoading ? "rgba(59,130,246,0.5)" : canAffordPage ? "linear-gradient(135deg, #2563eb, #3b82f6)" : "rgba(255,255,255,0.06)",
+                border: `1px solid ${canAffordPage ? "rgba(59,130,246,0.4)" : "rgba(255,255,255,0.08)"}`,
+                borderRadius: 8, fontSize: 13, cursor: unlockLoading || !canAffordPage ? "not-allowed" : "pointer",
+                color: canAffordPage ? "#fff" : T.chromeMuted, fontFamily: "'Georgia', serif",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              }}>
+                {unlockLoading && <Spinner size={13} color="#fff" />}
+                {unlockLoading ? "Unlocking…" : `Unlock Page ${pendingPage}`}
+              </button>
+              {!canAffordPage && (
+                <div style={{ textAlign: "center", marginTop: 8, fontSize: 11, color: T.rose }}>
+                  Insufficient balance
+                </div>
+              )}
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+            <button onClick={() => { setShowUnlockPrompt(false); setPendingPage(null); }} style={{
+              padding: "10px 20px", background: "transparent",
+              border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8,
+              fontSize: 13, cursor: "pointer", color: T.chromeMuted, fontFamily: "'Georgia', serif",
+            }}>Cancel</button>
+            {isPreviewMode() && !isFreePage && (
+              <button onClick={() => { window.location.href = `/login?redirect=/reader/${bookId}`; }} style={{
+                padding: "10px 20px", background: `linear-gradient(135deg, ${T.greenDeep}, ${T.green})`,
+                border: "none", borderRadius: 8, fontSize: 13, cursor: "pointer", color: "#fff", fontFamily: "'Georgia', serif",
+              }}>Sign In to Continue</button>
+            )}
+            {isFreePage && (
+              <button onClick={() => {
+                setShowUnlockPrompt(false);
+                setCurrentPage(pendingPage); setPageInput(String(pendingPage));
+                setProgress(((pendingPage - 1) / Math.max(1, totalPages - 1)) * 100);
+                const el = pageRefs.current[pendingPage];
+                if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                setPendingPage(null);
+              }} style={{
+                padding: "10px 20px", background: `linear-gradient(135deg, ${T.greenDeep}, ${T.green})`,
+                border: `1px solid ${T.greenBorder}`, borderRadius: 8, fontSize: 13, cursor: "pointer", color: "#fff", fontFamily: "'Georgia', serif",
+              }}>Read Free Page</button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const unlockChapter = async (chapterNumber) => {
+    try {
+      setUnlockLoading(true);
+      const res = await api.post('/api/reader/chapters/unlock/', { book_id: bookId, chapter_number: chapterNumber });
+      if (res.data.message) {
+        setUnlockedChapters(prev => new Set([...prev, chapterNumber]));
+        setWalletBalance(res.data.remaining_balance);
+        setTimeout(async () => {
+          try {
+            const r = await api.get(`/api/reader/features/unlocked_pages/${bookId}/`);
+            setUnlockedPages(new Set(r.data.unlocked_pages || []));
+          } catch {}
+        }, 500);
+        toast(`Chapter ${chapterNumber} unlocked!`);
+        return true;
+      }
+    } catch (error) {
+      toast(error.response?.data?.error || 'Failed to unlock chapter');
+      return false;
+    } finally { setUnlockLoading(false); }
   };
 
   useEffect(() => {
@@ -749,7 +862,14 @@ export default function PDFReader() {
       const t = setTimeout(() => loadUnlockedPages(), 1000);
       return () => clearTimeout(t);
     }
-  }, [loading, book, unlockedPages.size]);
+  }, [loading, book, unlockedPages.size, loadUnlockedPages]);
+
+  useEffect(() => {
+    if (!loading && book && chapters.length === 0) {
+      const t = setTimeout(() => loadChapters(), 1200);
+      return () => clearTimeout(t);
+    }
+  }, [loading, book, chapters.length, loadChapters]);
 
   useEffect(() => {
     let mounted = true;
@@ -759,32 +879,30 @@ export default function PDFReader() {
         if (isPreviewMode()) {
           const r = await api.get(`/api/books/${bookId}/`);
           if (!mounted) return;
-          setBook(r.data); setWalletBalance(0);
-          setPerPageCost(r.data.per_page_cost || 1);
-          setUnlockedPages(new Set());
+          setBook(r.data); setWalletBalance(0); setPerPageCost(r.data.per_page_cost || 1); setUnlockedPages(new Set());
         } else {
-          const [bookRes, walletRes] = await Promise.all([
-            api.get(`/api/books/${bookId}/`),
-            api.get("/api/payments/wallet/"),
-          ]);
+          const [bookRes, walletRes] = await Promise.all([api.get(`/api/books/${bookId}/`), api.get("/api/payments/wallet/")]);
           if (!mounted) return;
-          setBook(bookRes.data); setWalletBalance(walletRes.data.balance);
-          setPerPageCost(bookRes.data.per_page_cost || 1);
+          setBook(bookRes.data); setWalletBalance(walletRes.data.balance); setPerPageCost(bookRes.data.per_page_cost || 1);
           await loadUnlockedPages();
         }
         setLoading(false);
-      } catch (err) {
-        if (mounted) { setLoadError(true); setLoading(false); }
-      }
+      } catch { if (mounted) { setLoadError(true); setLoading(false); } }
     }
     if (bookId && (token || isPreviewMode()) && !book) fetchData();
     return () => { mounted = false; };
   }, [bookId, token, book, isPreviewMode]);
 
   const isPageUnlocked = useCallback((n) => {
-    if (!totalPages) return false;
+    if (!totalPages) {
+      console.log(`DEBUG: isPageUnlocked(${n}) - no totalPages, returning false`);
+      return false;
+    }
     const freePages = Math.max(1, Math.ceil(totalPages * 0.2));
-    return n <= freePages || unlockedPages.has(n);
+    const hasInUnlockedPages = unlockedPages.has(n);
+    const isUnlocked = n <= freePages || hasInUnlockedPages;
+    console.log(`DEBUG: isPageUnlocked(${n}) - totalPages: ${totalPages}, freePages: ${freePages}, unlockedPages.has(${n}): ${hasInUnlockedPages}, n <= freePages: ${n <= freePages}, isUnlocked: ${isUnlocked}`);
+    return isUnlocked;
   }, [totalPages, unlockedPages]);
 
   const getLastUnlockedPage = useCallback(() => {
@@ -792,15 +910,16 @@ export default function PDFReader() {
     const freePages = Math.max(1, Math.ceil(totalPages * 0.2));
     let last = freePages;
     for (let n = freePages + 1; n <= totalPages; n++) {
-      if (unlockedPages.has(n)) last = n;
-      else break;
+      if (unlockedPages.has(n)) last = n; else break;
     }
     return Math.min(last, totalPages);
   }, [totalPages, unlockedPages]);
 
   const shouldShowUnlockCTA = useCallback((n) => {
     const last = getLastUnlockedPage();
-    return n === last && last < totalPages;
+    const shouldShow = n === last && last < totalPages;
+    console.log(`DEBUG: shouldShowUnlockCTA(${n}) - last: ${last}, totalPages: ${totalPages}, shouldShow: ${shouldShow}`);
+    return shouldShow;
   }, [getLastUnlockedPage, totalPages]);
 
   const loadPDF = useCallback(async (source) => {
@@ -808,9 +927,8 @@ export default function PDFReader() {
     setLoading(true); setLoadError(false);
     try {
       let docInit;
-      if (source instanceof ArrayBuffer) {
-        docInit = { data: source };
-      } else {
+      if (source instanceof ArrayBuffer) { docInit = { data: source }; }
+      else {
         const res = await api.get(source, { responseType: "arraybuffer" });
         docInit = { data: res.data };
       }
@@ -818,9 +936,7 @@ export default function PDFReader() {
       setPdf(doc); setTotalPages(doc.numPages);
       setCurrentPage(1); setPageInput("1"); setProgress(0);
       setLoading(false);
-    } catch (e) {
-      setLoading(false); setLoadError(true);
-    }
+    } catch { setLoading(false); setLoadError(true); }
   }, []);
 
   useEffect(() => {
@@ -839,18 +955,14 @@ export default function PDFReader() {
       if (dist < minDist) { minDist = dist; closest = i; }
     }
     if (closest !== currentPage) {
-      setCurrentPage(closest);
-      setPageInput(String(closest));
+      setCurrentPage(closest); setPageInput(String(closest));
       setProgress(((closest - 1) / Math.max(1, totalPages - 1)) * 100);
     }
   }, [currentPage, totalPages]);
 
   const goToPage = useCallback((n) => {
     n = Math.max(1, Math.min(n, totalPages));
-    if (!isPageUnlocked(n)) {
-      setPendingPage(n); setShowUnlockPrompt(true);
-      return;
-    }
+    if (!isPageUnlocked(n)) { setPendingPage(n); setShowUnlockPrompt(true); return; }
     setCurrentPage(n); setPageInput(String(n));
     setProgress(((n - 1) / Math.max(1, totalPages - 1)) * 100);
     const el = pageRefs.current[n];
@@ -859,40 +971,22 @@ export default function PDFReader() {
 
   const unlockPage = useCallback(async (pageNum) => {
     if (isPageUnlocked(pageNum)) { toast("Page already unlocked"); return; }
-    
-    // Check if previous page is completed (except for first page)
     const previousPage = pageNum - 1;
     if (previousPage >= 1 && !completedPages.has(previousPage)) {
       const shouldCompleteFirst = window.confirm(
-        `Have you completed page ${previousPage}?\n\n` +
-        `It's recommended to mark pages as complete before unlocking the next one.\n\n` +
-        `Click "OK" to mark page ${previousPage} as complete and unlock page ${pageNum},\n` +
-        `or "Cancel" to just unlock page ${pageNum}.`
+        `Have you completed page ${previousPage}?\n\nClick OK to mark it complete and unlock page ${pageNum}, or Cancel to just unlock.`
       );
-      
       if (shouldCompleteFirst) {
-        // Mark previous page as complete first
         try {
-          const res = await api.post('/api/reader/features/mark_completed/', {
-            book_id: bookId,
-            page_number: previousPage
-          });
-          
+          const res = await api.post('/api/reader/features/mark_completed/', { book_id: bookId, page_number: previousPage });
           if (res.data.message) {
             setCompletedPages(prev => new Set([...prev, previousPage]));
             toast(`Page ${previousPage} marked as completed!`);
-            
-            // Update progress
-            const progressPercent = ((previousPage) / Math.max(1, totalPages - 1)) * 100;
-            setProgress(progressPercent);
+            setProgress(((previousPage) / Math.max(1, totalPages - 1)) * 100);
           }
-        } catch (error) {
-          console.error('Failed to mark page as completed:', error);
-          toast('Failed to mark page as completed, but will proceed with unlock');
-        }
+        } catch { toast('Failed to mark page, proceeding with unlock'); }
       }
     }
-    
     setUnlockLoading(true);
     try {
       const res = await api.post(`/api/reader/features/unlock_page/`, { book_id: bookId, page_number: pageNum });
@@ -900,50 +994,31 @@ export default function PDFReader() {
         setUnlockedPages(prev => new Set([...prev, pageNum]));
         setWalletBalance(res.data.remaining_balance);
         toast(`Page ${pageNum} unlocked!`);
-        
-        // Refresh unlocked pages from server
         setTimeout(async () => {
           try {
             const r = await api.get(`/api/reader/features/unlocked_pages/${bookId}/`);
             setUnlockedPages(new Set(r.data.unlocked_pages || []));
           } catch {}
         }, 500);
-        
-        // Focus on the newly unlocked page
         setCurrentPage(pageNum);
-        
-        // Scroll to the unlocked page after a short delay for rendering
         setTimeout(() => {
           const el = pageRefs.current[pageNum];
           if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
         }, 300);
       }
     } catch (error) {
-      console.error('Unlock error:', error);
       if (error.response?.data?.requires_completion) {
-        // Handle sequential reading requirement
-        const { previous_page } = error.response.data;
-        toast(`You must complete page ${previous_page} first!`);
-        // Optionally navigate to the previous page
-        goToPage(previous_page);
-      } else {
-        toast(error.response?.data?.error || "Failed to unlock page");
-      }
-    } finally {
-      setUnlockLoading(false);
-    }
-  }, [unlockLoading, walletBalance, perPageCost, bookId, toast, isPageUnlocked]);
+        toast(`You must complete page ${error.response.data.previous_page} first!`);
+        goToPage(error.response.data.previous_page);
+      } else { toast(error.response?.data?.error || "Failed to unlock page"); }
+    } finally { setUnlockLoading(false); }
+  }, [unlockLoading, walletBalance, perPageCost, bookId, toast, isPageUnlocked, completedPages, goToPage, totalPages]);
 
-  const handleInlineUnlock = useCallback(async (pageNum) => {
-    await unlockPage(pageNum);
-  }, [unlockPage]);
+  const handleInlineUnlock = useCallback(async (pageNum) => { await unlockPage(pageNum); }, [unlockPage]);
 
   const handleModalUnlock = useCallback(async () => {
     if (!pendingPage || unlockLoading) return;
-    if (isPageUnlocked(pendingPage)) {
-      toast("Page already unlocked");
-      setShowUnlockPrompt(false); setPendingPage(null); return;
-    }
+    if (isPageUnlocked(pendingPage)) { toast("Page already unlocked"); setShowUnlockPrompt(false); setPendingPage(null); return; }
     setUnlockLoading(true);
     try {
       const res = await api.post(`/api/reader/features/unlock_page/`, { book_id: bookId, page_number: pendingPage });
@@ -962,97 +1037,44 @@ export default function PDFReader() {
           } catch {}
         }, 500);
       }
-    } catch {
-      toast("Failed to unlock. Try again.");
-    } finally {
-      setUnlockLoading(false);
-    }
+    } catch { toast("Failed to unlock. Try again."); }
+    finally { setUnlockLoading(false); }
   }, [pendingPage, unlockLoading, bookId, toast, isPageUnlocked, goToPage]);
 
   const handleBulkUnlock = useCallback(async () => {
     if (unlockLoading || bulkUnlockCount < 1) return;
-    
-    // Check if current page is completed before bulk unlocking
     if (!completedPages.has(currentPage)) {
-      const shouldCompleteFirst = window.confirm(
-        `Have you completed page ${currentPage}?\n\n` +
-        `It's recommended to mark pages as complete before unlocking more pages.\n\n` +
-        `Click "OK" to mark page ${currentPage} as complete and proceed with bulk unlock,\n` +
-        `or "Cancel" to just proceed with bulk unlock.`
-      );
-      
-      if (shouldCompleteFirst) {
-        // Mark current page as complete first
+      const ok = window.confirm(`Mark page ${currentPage} complete before bulk unlock? OK to mark + unlock, Cancel to just unlock.`);
+      if (ok) {
         try {
-          const res = await api.post('/api/reader/features/mark_completed/', {
-            book_id: bookId,
-            page_number: currentPage
-          });
-          
+          const res = await api.post('/api/reader/features/mark_completed/', { book_id: bookId, page_number: currentPage });
           if (res.data.message) {
             setCompletedPages(prev => new Set([...prev, currentPage]));
             toast(`Page ${currentPage} marked as completed!`);
-            
-            // Update progress
-            const progressPercent = ((currentPage) / Math.max(1, totalPages - 1)) * 100;
-            setProgress(progressPercent);
           }
-        } catch (error) {
-          console.error('Failed to mark page as completed:', error);
-          toast('Failed to mark page as completed, but will proceed with bulk unlock');
-        }
+        } catch { toast('Failed to mark page, proceeding with bulk unlock'); }
       }
     }
-    
     const totalCost = perPageCost * bulkUnlockCount;
-    if (walletBalance < totalCost) { 
-      toast(`Need ${totalCost - walletBalance} more coins`); 
-      return; 
-    }
-    
+    if (walletBalance < totalCost) { toast(`Need ${totalCost - walletBalance} more coins`); return; }
     setUnlockLoading(true);
     try {
-      // Find the next locked pages to unlock
       const pagesToUnlock = [];
       let page = currentPage;
-      
       while (pagesToUnlock.length < bulkUnlockCount && page <= totalPages) {
-        if (!isPageUnlocked(page)) {
-          pagesToUnlock.push(page);
-        }
+        if (!isPageUnlocked(page)) pagesToUnlock.push(page);
         page++;
       }
-      
-      if (pagesToUnlock.length === 0) {
-        toast("No more pages to unlock");
-        return;
-      }
-      
-      // Unlock pages in batch
-      const unlockPromises = pagesToUnlock.map(pageNum => 
-        api.post(`/api/reader/features/unlock_page/`, { book_id: bookId, page_number: pageNum })
-      );
-      
-      const results = await Promise.all(unlockPromises);
-      let unlockedCount = 0;
-      let newBalance = walletBalance;
-      
-      results.forEach(res => {
-        if (res.data.message) {
-          unlockedCount++;
-          newBalance = res.data.remaining_balance;
-        }
-      });
-      
+      if (!pagesToUnlock.length) { toast("No more pages to unlock"); return; }
+      const results = await Promise.all(pagesToUnlock.map(pn => api.post(`/api/reader/features/unlock_page/`, { book_id: bookId, page_number: pn })));
+      let unlockedCount = 0, newBalance = walletBalance;
+      results.forEach(res => { if (res.data.message) { unlockedCount++; newBalance = res.data.remaining_balance; } });
       if (unlockedCount > 0) {
         setUnlockedPages(prev => new Set([...prev, ...pagesToUnlock.slice(0, unlockedCount)]));
         setWalletBalance(newBalance);
         toast(`Unlocked ${unlockedCount} page${unlockedCount > 1 ? 's' : ''} ✓`);
         setRenderKey(prev => prev + 1);
-        setShowBulkUnlock(false);
-        setBulkUnlockCount(1);
-        
-        // Refresh unlocked pages from server
+        setShowBulkUnlock(false); setBulkUnlockCount(1);
         setTimeout(async () => {
           try {
             const r = await api.get(`/api/reader/features/unlocked_pages/${bookId}/`);
@@ -1060,14 +1082,10 @@ export default function PDFReader() {
           } catch {}
         }, 500);
       }
-    } catch {
-      toast("Failed to unlock pages. Try again.");
-    } finally {
-      setUnlockLoading(false);
-    }
-  }, [bulkUnlockCount, unlockLoading, perPageCost, walletBalance, currentPage, totalPages, bookId, toast, isPageUnlocked]);
+    } catch { toast("Failed to unlock pages. Try again."); }
+    finally { setUnlockLoading(false); }
+  }, [bulkUnlockCount, unlockLoading, perPageCost, walletBalance, currentPage, totalPages, bookId, toast, isPageUnlocked, completedPages]);
 
-  // Keyboard
   useEffect(() => {
     const handler = (e) => {
       if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
@@ -1090,23 +1108,14 @@ export default function PDFReader() {
   }, [toast]);
 
   const handleRemoveHighlight = useCallback((pageNum, rect) => {
-    // Find and remove highlights that overlap with the clicked/touched area
     setHighlights(prev => {
       const updated = prev.filter(hl => {
         if (hl.page !== pageNum) return true;
-        // Check if rectangles overlap with some tolerance
-        const tolerance = 0.01;
-        return !(Math.abs(hl.x - rect.x) < tolerance && 
-                 Math.abs(hl.y - rect.y) < tolerance &&
-                 Math.abs(hl.w - rect.w) < tolerance &&
-                 Math.abs(hl.h - rect.h) < tolerance);
+        const tol = 0.01;
+        return !(Math.abs(hl.x - rect.x) < tol && Math.abs(hl.y - rect.y) < tol && Math.abs(hl.w - rect.w) < tol && Math.abs(hl.h - rect.h) < tol);
       });
       const removed = prev.length - updated.length;
-      if (removed > 0) {
-        toast(`Removed ${removed} highlight${removed > 1 ? 's' : ''} ✓`);
-      } else {
-        toast("No highlights found in this area");
-      }
+      toast(removed > 0 ? `Removed ${removed} highlight${removed > 1 ? 's' : ''} ✓` : "No highlights found here");
       return updated;
     });
   }, [toast]);
@@ -1125,171 +1134,65 @@ export default function PDFReader() {
     });
   }, [toast]);
 
-  // Mobile gesture handlers
   const handleTouchStart = useCallback((e) => {
     if (!isMobile) return;
     setTouchEnd(null);
     const currentTime = Date.now();
-    
-    // Clear any existing long press timer
-    if (longPressTimer) {
-      clearTimeout(longPressTimer);
-      setLongPressTimer(null);
-    }
-    
-    // Check for double tap
+    if (longPressTimer) { clearTimeout(longPressTimer); setLongPressTimer(null); }
     if (lastTap && currentTime - lastTap.time < 300) {
-      // Double tap detected - toggle zoom
-      if (scale === 1.0) {
-        setScale(1.5);
-        toast("Zoomed in");
-      } else {
-        setScale(1.0);
-        toast("Zoomed out");
-      }
-      
-      setLastTap(null); // Reset to avoid triple taps
-      return;
+      setScale(s => s === 1.0 ? 1.5 : 1.0);
+      toast(scale === 1.0 ? "Zoomed in" : "Zoomed out");
+      setLastTap(null); return;
     }
-    
-    // Start long press timer
-    const timer = setTimeout(() => {
-      setIsLongPressing(true);
-      // Show context menu or quick actions
-      toast("Long press - menu options");
-      // You could trigger a context menu here
-    }, 500);
+    const timer = setTimeout(() => { setIsLongPressing(true); }, 500);
     setLongPressTimer(timer);
-    
-    setTouchStart({
-      x: e.touches[0].clientX,
-      y: e.touches[0].clientY,
-      time: currentTime
-    });
+    setTouchStart({ x: e.touches[0].clientX, y: e.touches[0].clientY, time: currentTime });
     setLastTap({ time: currentTime, x: e.touches[0].clientX, y: e.touches[0].clientY });
-  }, [isMobile, lastTap, scale, setScale, toast, longPressTimer]);
+  }, [isMobile, lastTap, scale, toast, longPressTimer]);
 
   const handleTouchMove = useCallback((e) => {
     if (!isMobile || !touchStart) return;
-    
-    // Cancel double tap if finger moves too much
-    if (lastTap && Math.abs(e.touches[0].clientX - lastTap.x) > 10 && Math.abs(e.touches[0].clientY - lastTap.y) > 10) {
-      setLastTap(null);
-    }
-    
-    // Cancel long press if finger moves
+    if (lastTap && Math.abs(e.touches[0].clientX - lastTap.x) > 10 && Math.abs(e.touches[0].clientY - lastTap.y) > 10) setLastTap(null);
     if (longPressTimer) {
-      const moveThreshold = 15;
-      const deltaX = Math.abs(e.touches[0].clientX - touchStart.x);
-      const deltaY = Math.abs(e.touches[0].clientY - touchStart.y);
-      
-      if (deltaX > moveThreshold || deltaY > moveThreshold) {
-        clearTimeout(longPressTimer);
-        setLongPressTimer(null);
-      }
+      const dx = Math.abs(e.touches[0].clientX - touchStart.x), dy = Math.abs(e.touches[0].clientY - touchStart.y);
+      if (dx > 15 || dy > 15) { clearTimeout(longPressTimer); setLongPressTimer(null); }
     }
-    
-    setTouchEnd({
-      x: e.touches[0].clientX,
-      y: e.touches[0].clientY
-    });
+    setTouchEnd({ x: e.touches[0].clientX, y: e.touches[0].clientY });
   }, [isMobile, touchStart, lastTap, longPressTimer]);
 
   const handleTouchEnd = useCallback((e) => {
-    // Clear long press timer
-    if (longPressTimer) {
-      clearTimeout(longPressTimer);
-      setLongPressTimer(null);
-    }
-    
-    // Reset long press state
-    if (isLongPressing) {
-      setIsLongPressing(false);
-      setTouchStart(null);
-      setTouchEnd(null);
-      setTimeout(() => setLastTap(null), 300);
-      return;
-    }
-    
+    if (longPressTimer) { clearTimeout(longPressTimer); setLongPressTimer(null); }
+    if (isLongPressing) { setIsLongPressing(false); setTouchStart(null); setTouchEnd(null); setTimeout(() => setLastTap(null), 300); return; }
     if (!isMobile || !touchStart || !touchEnd) return;
-    
-    const deltaX = touchEnd.x - touchStart.x;
-    const deltaY = touchEnd.y - touchStart.y;
-    const deltaTime = Date.now() - touchStart.time;
-    
-    // Minimum swipe distance and maximum time
-    const minSwipeDistance = 50;
-    const maxSwipeTime = 300;
-    
-    if (Math.abs(deltaX) > minSwipeDistance && deltaTime < maxSwipeTime) {
-      // Horizontal swipe detected
-      if (Math.abs(deltaY) < Math.abs(deltaX)) {
-        // Prevent vertical component from interfering
-        if (deltaX > 0) {
-          // Swipe right - previous page
-          if (currentPage > 1) {
-            goToPage(currentPage - 1);
-            toast("Previous page");
-          }
-        } else {
-          // Swipe left - next page
-          if (currentPage < totalPages) {
-            goToPage(currentPage + 1);
-            toast("Next page");
-          }
-        }
-      }
+    const dx = touchEnd.x - touchStart.x, dy = touchEnd.y - touchStart.y;
+    const dt = Date.now() - touchStart.time;
+    if (Math.abs(dx) > 50 && dt < 300 && Math.abs(dy) < Math.abs(dx)) {
+      if (dx > 0 && currentPage > 1) { goToPage(currentPage - 1); toast("← Prev"); }
+      else if (dx < 0 && currentPage < totalPages) { goToPage(currentPage + 1); toast("Next →"); }
     }
-    
-    setTouchStart(null);
-    setTouchEnd(null);
-    
-    // Reset last tap after a delay to allow for new double taps
-    setTimeout(() => setLastTap(null), 300);
+    setTouchStart(null); setTouchEnd(null); setTimeout(() => setLastTap(null), 300);
   }, [isMobile, touchStart, touchEnd, currentPage, totalPages, goToPage, toast, longPressTimer, isLongPressing]);
 
-  // Sidebar swipe handlers
   const handleSidebarTouchStart = useCallback((e) => {
     if (!isMobile || !sidebarOpen) return;
-    setSidebarTouchStart({
-      x: e.touches[0].clientX,
-      time: Date.now()
-    });
+    setSidebarTouchStart({ x: e.touches[0].clientX, time: Date.now() });
   }, [isMobile, sidebarOpen]);
-
-  const handleSidebarTouchMove = useCallback((e) => {
-    if (!isMobile || !sidebarOpen || !sidebarTouchStart) return;
-    // Optional: Add visual feedback during swipe
-  }, [isMobile, sidebarOpen, sidebarTouchStart]);
 
   const handleSidebarTouchEnd = useCallback((e) => {
     if (!isMobile || !sidebarOpen || !sidebarTouchStart) return;
-    
-    const deltaX = e.changedTouches[0].clientX - sidebarTouchStart.x;
-    const deltaTime = Date.now() - sidebarTouchStart.time;
-    
-    // Swipe right to dismiss (positive deltaX means swipe right)
-    const minSwipeDistance = 80;
-    const maxSwipeTime = 300;
-    
-    if (deltaX > minSwipeDistance && deltaTime < maxSwipeTime) {
-      // Swiped right enough - close sidebar
-      setSidebarOpen(false);
-      toast("Sidebar closed");
-    }
-    
+    const dx = e.changedTouches[0].clientX - sidebarTouchStart.x;
+    const dt = Date.now() - sidebarTouchStart.time;
+    if (dx > 80 && dt < 300) { setSidebarOpen(false); }
     setSidebarTouchStart(null);
-  }, [isMobile, sidebarOpen, sidebarTouchStart, setSidebarOpen, toast]);
+  }, [isMobile, sidebarOpen, sidebarTouchStart]);
 
   const saveAnnot = () => {
     if (!annotText.trim()) { toast("Enter a note first"); return; }
     const { pageNum, rect, color } = annotPopup;
     setNotes(prev => [...prev, { id: Date.now(), page: pageNum, text: annotText.trim(), rect, color, createdAt: new Date().toISOString() }]);
     if (rect) setHighlights(prev => [...prev, { id: Date.now() + 1, page: pageNum, ...rect, color, note: annotText.trim() }]);
-    setAnnotPopup(null);
-    toast("Note saved ✓");
-    setActiveTab("notes");
-    if (!sidebarOpen) setSidebarOpen(true);
+    setAnnotPopup(null); toast("Note saved ✓");
+    setActiveTab("notes"); if (!sidebarOpen) setSidebarOpen(true);
   };
 
   const handleSearch = useCallback(async (text) => {
@@ -1310,12 +1213,6 @@ export default function PDFReader() {
   const zoomIn  = () => { const i = ZOOM_LEVELS.indexOf(scale); if (i < ZOOM_LEVELS.length - 1) setScale(ZOOM_LEVELS[i + 1]); };
   const zoomOut = () => { const i = ZOOM_LEVELS.indexOf(scale); if (i > 0) setScale(ZOOM_LEVELS[i - 1]); };
 
-  const isLight      = theme === "light";
-  const sidebarBg    = isLight ? "#f9f3e8" : "#111";
-  const sidebarBdr   = isLight ? "#e0d0b0" : TOKENS.border;
-  const sidebarText  = isLight ? TOKENS.inkBrown : TOKENS.bodyText;
-  const sidebarMuted = isLight ? TOKENS.warmGray : "rgba(240,230,211,0.45)";
-
   const toolModes = [
     { id: "select",    icon: ICONS.cursor,    label: "Select",    tip: "S" },
     { id: "highlight", icon: ICONS.highlight, label: "Highlight", tip: "H" },
@@ -1324,137 +1221,67 @@ export default function PDFReader() {
     { id: "remove",    icon: ICONS.x,         label: "Remove",    tip: "Remove highlights" },
   ];
 
-  // ── Unlock modal ─────────────────────────────────────────────────────────
-  if (showUnlockPrompt && pendingPage) {
-    const freePages = Math.max(1, Math.ceil((totalPages * 0.2) || 1));
-    const isFreePage = pendingPage <= freePages;
-    const canAfford  = walletBalance >= perPageCost;
-    return (
-      <div style={{
-        position: "fixed", inset: 0, zIndex: 2000,
-        background: "rgba(0,0,0,0.85)", backdropFilter: "blur(8px)",
-        display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
-      }}>
-        <div style={{
-          background: isLight ? TOKENS.parchment : "#1a1208",
-          border: `1px solid ${TOKENS.border}`,
-          borderRadius: 14, padding: isMobile ? 24 : 40,
-          width: "100%", maxWidth: 440,
-          boxShadow: "0 24px 64px rgba(0,0,0,0.6)",
-        }}>
-          <div style={{
-            width: 60, height: 60, borderRadius: "50%",
-            background: "rgba(34,197,94,0.1)", border: `1px solid ${TOKENS.border}`,
-            display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px",
-          }}>
-            <Icon d={ICONS.lock} size={26} />
-          </div>
-          <h2 style={{ textAlign: "center", margin: "0 0 12px", fontSize: isMobile ? 20 : 24, fontFamily: "'Georgia', serif", fontStyle: "italic", color: sidebarText }}>
-            {isPreviewMode() && !isFreePage ? "Preview Complete" : isFreePage ? "Free Preview" : "Unlock Page"}
-          </h2>
-          <p style={{ textAlign: "center", margin: "0 0 24px", fontSize: 14, color: sidebarMuted, lineHeight: 1.7 }}>
-            {isPreviewMode() && !isFreePage
-              ? `You've reached the end of your free preview (${freePages} pages). Sign up to continue!`
-              : isFreePage
-                ? `Page ${pendingPage} is part of your free preview (first ${freePages} pages).`
-                : `Unlock page ${pendingPage} for ${perPageCost} coins. You have ${walletBalance} coins.`}
-          </p>
-          {!isFreePage && !canAfford && (
-            <div style={{ textAlign: "center", marginBottom: 16, fontSize: 13, color: TOKENS.rosewood, padding: "8px 14px", background: "rgba(230,80,140,0.08)", border: "1px solid rgba(230,80,140,0.2)", borderRadius: 6 }}>
-              Insufficient balance — please top up your wallet.
-            </div>
-          )}
-          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-            <button onClick={() => { setShowUnlockPrompt(false); setPendingPage(null); }} style={{ padding: "11px 22px", background: "transparent", border: `1px solid ${sidebarBdr}`, borderRadius: 8, fontSize: 14, cursor: "pointer", color: sidebarMuted, fontFamily: "'Georgia', serif" }}>
-              Cancel
-            </button>
-            {isPreviewMode() && !isFreePage ? (
-              <button onClick={() => { window.location.href = `/login?redirect=/reader/${bookId}`; }} style={{ padding: "11px 22px", background: "linear-gradient(135deg, #16a34a, #22c55e)", border: "none", borderRadius: 8, fontSize: 14, cursor: "pointer", color: "#fff", fontFamily: "'Georgia', serif", fontWeight: 600 }}>
-                Sign In to Continue
-              </button>
-            ) : isFreePage ? (
-              <button onClick={() => {
-                setShowUnlockPrompt(false);
-                setCurrentPage(pendingPage); setPageInput(String(pendingPage));
-                setProgress(((pendingPage - 1) / Math.max(1, totalPages - 1)) * 100);
-                const el = pageRefs.current[pendingPage];
-                if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-                setPendingPage(null);
-              }} style={{ padding: "11px 22px", background: "linear-gradient(135deg, #16a34a, #22c55e)", border: `1px solid ${TOKENS.rustLight}`, borderRadius: 8, fontSize: 14, cursor: "pointer", color: "#fff", fontFamily: "'Georgia', serif" }}>
-                Read Free Page
-              </button>
-            ) : canAfford ? (
-              <button onClick={handleModalUnlock} disabled={unlockLoading} style={{ padding: "11px 22px", background: unlockLoading ? "rgba(22,163,74,0.5)" : "linear-gradient(135deg, #16a34a, #22c55e)", border: `1px solid ${TOKENS.rustLight}`, borderRadius: 8, fontSize: 14, cursor: unlockLoading ? "not-allowed" : "pointer", color: "#fff", fontFamily: "'Georgia', serif", display: "flex", alignItems: "center", gap: 8 }}>
-                {unlockLoading && <Spinner size={14} color="#fff" />}
-                {unlockLoading ? "Unlocking…" : `Unlock — ${perPageCost} coins`}
-              </button>
-            ) : null}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Bulk Unlock Modal ─────────────────────────────────────────────────────────
+  // Bulk Unlock Modal — always dark
   if (showBulkUnlock) {
     const totalCost = perPageCost * bulkUnlockCount;
     const canAfford = walletBalance >= totalCost;
-    const sidebarBg = isLight ? "#f9f3e8" : "#111";
-    const sidebarBdr = isLight ? "#e0d0b0" : TOKENS.border;
-    const sidebarMuted = isLight ? TOKENS.warmGray : "rgba(240,230,211,0.45)";
-    
     return (
       <div style={{
         position: "fixed", inset: 0, zIndex: 2000,
-        background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center",
-        padding: 20,
+        background: "rgba(0,0,0,0.88)", backdropFilter: "blur(12px)",
+        display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
       }}>
         <div style={{
-          background: sidebarBg, border: `1px solid ${sidebarBdr}`, borderRadius: 12,
-          padding: 28, maxWidth: 400, width: "100%", fontFamily: "'Georgia', serif",
+          background: "#111", border: "1px solid rgba(255,255,255,0.1)",
+          borderRadius: 16, padding: isMobile ? 24 : 40, width: "100%", maxWidth: 420,
+          boxShadow: "0 32px 80px rgba(0,0,0,0.7)",
         }}>
-          <h3 style={{ margin: "0 0 16px", fontSize: 20, color: isLight ? TOKENS.inkBrown : TOKENS.bodyText }}>
-            Bulk Unlock Pages
-          </h3>
-          <p style={{ margin: "0 0 20px", fontSize: 15, lineHeight: 1.5, color: sidebarMuted }}>
-            Unlock the next {bulkUnlockCount} page{bulkUnlockCount > 1 ? 's' : ''} starting from page {currentPage}.
-            Total cost: {totalCost} coins. You have {walletBalance} coins.
+          <div style={{
+            width: 52, height: 52, borderRadius: "50%",
+            background: T.greenDim, border: `1px solid ${T.greenBorder}`,
+            display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px",
+          }}>
+            <Icon d={ICONS.unlock} size={22} />
+          </div>
+          <h2 style={{ textAlign: "center", margin: "0 0 10px", fontSize: 20, fontFamily: "'Georgia', serif", fontStyle: "italic", color: "#fff" }}>
+            Bulk Unlock
+          </h2>
+          <p style={{ textAlign: "center", margin: "0 0 24px", fontSize: 13, color: T.chromeMuted, lineHeight: 1.75 }}>
+            Unlock {bulkUnlockCount} page{bulkUnlockCount > 1 ? 's' : ''} · {totalCost} coins. Balance: {walletBalance} coins.
           </p>
-          
           <div style={{ marginBottom: 20 }}>
-            <label style={{ display: "block", marginBottom: 8, fontSize: 14, color: sidebarMuted }}>
-              Number of pages to unlock:
+            <label style={{ display: "block", marginBottom: 6, fontSize: 11, color: T.chromeMuted, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: "monospace" }}>
+              Pages to unlock
             </label>
-            <input
-              type="number"
-              min="1"
-              max={Math.min(20, totalPages - currentPage + 1)}
-              value={bulkUnlockCount}
+            <input type="number" min="1" max={Math.min(20, totalPages - currentPage + 1)} value={bulkUnlockCount}
               onChange={e => setBulkUnlockCount(Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))}
               style={{
-                width: "100%", padding: "10px 12px", border: `1px solid ${sidebarBdr}`,
-                borderRadius: 6, fontSize: 14, background: isLight ? "#fff" : "rgba(255,255,255,0.05)",
-                color: isLight ? TOKENS.inkBrown : TOKENS.bodyText,
+                width: "100%", padding: "10px 12px",
+                border: "1px solid rgba(255,255,255,0.1)", borderRadius: 7,
+                fontSize: 14, background: "rgba(255,255,255,0.04)",
+                color: "#fff", outline: "none", fontFamily: "monospace",
               }}
             />
           </div>
-          
           {!canAfford && (
-            <div style={{ textAlign: "center", marginBottom: 16, fontSize: 13, color: TOKENS.rosewood, padding: "8px 14px", background: "rgba(230,80,140,0.08)", border: "1px solid rgba(230,80,140,0.2)", borderRadius: 6 }}>
+            <div style={{ textAlign: "center", marginBottom: 16, fontSize: 12, color: T.rose, padding: "8px 14px", background: "rgba(244,63,94,0.06)", border: "1px solid rgba(244,63,94,0.2)", borderRadius: 6 }}>
               Need {totalCost - walletBalance} more coins
             </div>
           )}
-          
-          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-            <button onClick={() => { setShowBulkUnlock(false); setBulkUnlockCount(1); }} style={{ padding: "11px 22px", background: "transparent", border: `1px solid ${sidebarBdr}`, borderRadius: 8, fontSize: 14, cursor: "pointer", color: sidebarMuted, fontFamily: "'Georgia', serif" }}>
+          <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+            <button onClick={() => { setShowBulkUnlock(false); setBulkUnlockCount(1); }} style={{ padding: "10px 20px", background: "transparent", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 13, cursor: "pointer", color: T.chromeMuted, fontFamily: "'Georgia', serif" }}>
               Cancel
             </button>
-            {canAfford ? (
-              <button onClick={handleBulkUnlock} disabled={unlockLoading} style={{ padding: "11px 22px", background: unlockLoading ? "rgba(22,163,74,0.5)" : "linear-gradient(135deg, #16a34a, #22c55e)", border: `1px solid ${TOKENS.rustLight}`, borderRadius: 8, fontSize: 14, cursor: unlockLoading ? "not-allowed" : "pointer", color: "#fff", fontFamily: "'Georgia', serif", display: "flex", alignItems: "center", gap: 8 }}>
-                {unlockLoading && <Spinner size={14} color="#fff" />}
-                {unlockLoading ? "Unlocking…" : `Unlock ${bulkUnlockCount} pages — ${totalCost} coins`}
+            {canAfford && (
+              <button onClick={handleBulkUnlock} disabled={unlockLoading} style={{
+                padding: "10px 20px", background: unlockLoading ? `${T.greenDeep}99` : `linear-gradient(135deg, ${T.greenDeep}, ${T.green})`,
+                border: `1px solid ${T.greenBorder}`, borderRadius: 8, fontSize: 13, cursor: unlockLoading ? "not-allowed" : "pointer", color: "#fff",
+                fontFamily: "'Georgia', serif", display: "flex", alignItems: "center", gap: 8,
+              }}>
+                {unlockLoading && <Spinner size={13} color="#fff" />}
+                {unlockLoading ? "Unlocking…" : `Unlock ${bulkUnlockCount} page${bulkUnlockCount > 1 ? 's' : ''}`}
               </button>
-            ) : null}
+            )}
           </div>
         </div>
       </div>
@@ -1465,60 +1292,56 @@ export default function PDFReader() {
   return (
     <div style={{
       display: "flex", flexDirection: "column",
-      height: "100dvh",          // dynamic viewport height — respects mobile browser chrome
-      width: "100%",
-      maxWidth: "100vw",
-      overflow: "hidden",
-      fontFamily: "'Georgia', serif",
-      background: isLight ? TOKENS.parchment : TOKENS.surfaceMid,
-      color: isLight ? TOKENS.inkBrown : TOKENS.bodyText,
+      height: "100dvh", width: "100%", maxWidth: "100vw",
+      overflow: "hidden", fontFamily: "'Georgia', serif",
+      // Chrome is ALWAYS dark — only PDF viewport changes with pdfTheme
+      background: T.chromeDeep, color: T.chromeText,
     }}>
-      {/* Reading progress bar */}
-      <div style={{ height: 2, background: isLight ? "rgba(22,163,74,0.1)" : "rgba(255,255,255,0.05)", flexShrink: 0, position: "relative" }}>
+
+      {/* Progress bar */}
+      <div style={{ height: 2, background: "rgba(255,255,255,0.04)", flexShrink: 0, position: "relative" }}>
         <div style={{
           position: "absolute", left: 0, top: 0, height: "100%", width: `${progress}%`,
-          background: `linear-gradient(90deg, ${TOKENS.rust}, ${TOKENS.amber})`,
-          transition: "width 0.35s ease", boxShadow: `0 0 8px ${TOKENS.amber}`,
+          background: `linear-gradient(90deg, ${T.greenDeep}, ${T.green})`,
+          transition: "width 0.35s ease", boxShadow: `0 0 6px ${T.green}`,
         }} />
       </div>
 
-      {/* Toolbar */}
+      {/* ── Toolbar ── */}
       <div style={{
-        display: "flex", alignItems: "center",
-        gap: isMobile ? 2 : 3,
-        padding: isMobile ? "0 8px" : "0 14px",
-        height: isMobile ? 46 : 50, flexShrink: 0,
-        background: isLight ? TOKENS.parchmentMid : TOKENS.surfaceDeep,
-        borderBottom: `1px solid ${isLight ? TOKENS.parchmentDim : TOKENS.border}`,
-        boxShadow: isLight ? "0 2px 20px rgba(0,0,0,0.1)" : "0 2px 20px rgba(0,0,0,0.4)",
+        display: "flex", alignItems: "center", gap: isMobile ? 1 : 2,
+        padding: isMobile ? "0 8px" : "0 12px",
+        height: isMobile ? 44 : 48, flexShrink: 0,
+        background: T.chromeDeep,
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        boxShadow: "0 1px 0 rgba(255,255,255,0.03)",
         overflowX: "auto", overflowY: "hidden",
-        // Prevent toolbar from shrinking on narrow screens
-        minWidth: 0,
       }}>
+        {/* Back */}
         <TbBtn onClick={() => navigate("/dashboard")} title="Dashboard" compact={isMobile}>
-          <Icon d={ICONS.prev} size={15} />
+          <Icon d={ICONS.prev} size={14} />
           {!isMobile && <span>Back</span>}
         </TbBtn>
 
         {!isMobile && (
           <>
-            <div style={{ width: 1, height: 24, background: TOKENS.borderLight, margin: "0 6px" }} />
-            <span style={{ fontStyle: "italic", fontSize: 17, color: TOKENS.amber, letterSpacing: "0.04em", userSelect: "none", flexShrink: 0 }}>
+            <Divider />
+            <span style={{ fontStyle: "italic", fontSize: 15, color: T.green, letterSpacing: "0.05em", userSelect: "none", flexShrink: 0 }}>
               Dkituyiacademy
             </span>
-            <div style={{ width: 1, height: 24, background: TOKENS.borderLight, margin: "0 6px" }} />
+            <Divider />
             {isPreviewMode() && (
-              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", background: "rgba(34,197,94,0.15)", border: `1px solid ${TOKENS.amber}`, borderRadius: 16, fontSize: 11, color: TOKENS.amber, fontFamily: "system-ui, sans-serif", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                <Icon d={ICONS.eye} size={10} />Preview
+              <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "3px 9px", background: T.greenDim, border: `1px solid ${T.greenBorder}`, borderRadius: 14, fontSize: 10, color: T.green, fontFamily: "monospace", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                Preview
               </div>
             )}
           </>
         )}
 
         {/* Sidebar toggle */}
-        <TbBtn active={sidebarOpen} onClick={() => setSidebarOpen(o => !o)} title="Pages & Annotations" compact={isMobile}>
-          <Icon d={ICONS.menu} size={15} />
-          {!isMobile && <span>Menu</span>}
+        <TbBtn active={sidebarOpen} onClick={() => setSidebarOpen(o => !o)} title="Panels" compact={isMobile}>
+          <Icon d={ICONS.menu} size={14} />
+          {!isMobile && <span>Panels</span>}
         </TbBtn>
 
         {/* Refresh */}
@@ -1526,78 +1349,83 @@ export default function PDFReader() {
           try {
             const r = await api.get(`/api/reader/features/unlocked_pages/${bookId}/`);
             setUnlockedPages(new Set(r.data.unlocked_pages || []));
-            setRenderKey(prev => prev + 1);
-            toast("Refreshed");
+            setRenderKey(prev => prev + 1); toast("Refreshed");
           } catch { toast("Failed to refresh"); }
         }} title="Refresh" compact={isMobile}>
-          <Icon d={ICONS.refresh} size={15} />
-          {!isMobile && <span>Refresh</span>}
+          <Icon d={ICONS.refresh} size={14} />
         </TbBtn>
 
-        {/* Page navigation */}
-        <TbBtn onClick={() => goToPage(currentPage - 1)} title="Previous (Left Arrow)" compact={isMobile}>
-          <Icon d={ICONS.prev} size={15} />
-        </TbBtn>
+        {/* Unlock chapter — desktop and mobile */}
+        <TbBtn onClick={() => {
+            console.log(`DEBUG: Chapter unlock button clicked - currentPage: ${currentPage}, chapters.length: ${chapters.length}`);
+            const ch = getChapterForPage(currentPage);
+            console.log(`DEBUG: Found chapter for unlock:`, ch);
+            if (!ch) { 
+              console.log(`DEBUG: No chapter found for page ${currentPage}`);
+              toast("No chapter for this page"); 
+              return; 
+            }
+            if (ch.is_free || unlockedChapters.has(ch.chapter_number)) { 
+              console.log(`DEBUG: Chapter ${ch.chapter_number} already unlocked (free: ${ch.is_free}, unlocked: ${unlockedChapters.has(ch.chapter_number)})`);
+              toast(`Chapter ${ch.chapter_number} is already unlocked`); 
+              return; 
+            }
+            if (walletBalance < 30) { 
+              console.log(`DEBUG: Insufficient balance - wallet: ${walletBalance}, needed: 30`);
+              toast("Insufficient balance (30 coins)"); 
+              return; 
+            }
+            console.log(`DEBUG: Proceeding to unlock chapter ${ch.chapter_number}`);
+            unlockChapter(ch.chapter_number).then(ok => ok && toast(`Chapter ${ch.chapter_number} unlocked!`));
+          }} title="Unlock Current Chapter" compact={isMobile}>
+            <Icon d={ICONS.lock} size={14} />
+            {!isMobile && <span>Chapter</span>}
+          </TbBtn>
+
+        <Divider />
+
+        {/* Page nav */}
+        <TbBtn onClick={() => goToPage(currentPage - 1)} title="Previous" compact={isMobile}><Icon d={ICONS.prev} size={14} /></TbBtn>
         <input
           value={pageInput}
           onChange={e => setPageInput(e.target.value)}
-          onKeyDown={e => {
-            if (e.key === 'Enter') {
-              const n = parseInt(pageInput);
-              if (!isNaN(n) && n >= 1 && n <= totalPages) goToPage(n);
-            }
-          }}
+          onKeyDown={e => { if (e.key === 'Enter') { const n = parseInt(pageInput); if (!isNaN(n) && n >= 1 && n <= totalPages) goToPage(n); } }}
           onFocus={e => e.target.select()}
           style={{
-            width: isMobile ? 45 : 55,
-            height: isMobile ? 30 : 32,
-            background: sidebarBg,
-            border: `1px solid ${sidebarBdr}`,
-            borderRadius: 4,
-            color: sidebarText,
-            textAlign: 'center',
-            fontSize: isMobile ? 11 : 12,
-            fontFamily: 'monospace',
-            padding: '0 4px',
-            outline: 'none',
+            width: isMobile ? 42 : 50, height: isMobile ? 28 : 30,
+            background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: 5, color: T.chromeText, textAlign: "center",
+            fontSize: isMobile ? 11 : 12, fontFamily: "monospace", padding: "0 4px", outline: "none",
           }}
           placeholder="1"
         />
         {!isMobile && (
-          <span style={{
-            color: sidebarMuted,
-            fontSize: 11,
-            fontFamily: 'monospace',
-            minWidth: 20,
-          }}>
+          <span style={{ color: T.chromeMuted, fontSize: 11, fontFamily: "monospace", minWidth: 20 }}>
             / {totalPages || "—"}
           </span>
         )}
-        <TbBtn onClick={() => goToPage(currentPage + 1)} title="Next (Right Arrow)" compact={isMobile}>
-          <Icon d={ICONS.next} size={15} />
-        </TbBtn>
+        <TbBtn onClick={() => goToPage(currentPage + 1)} title="Next" compact={isMobile}><Icon d={ICONS.next} size={14} /></TbBtn>
+
+        <Divider />
 
         {/* Zoom */}
-        {!isMobile && <div style={{ width: 1, height: 24, background: TOKENS.borderLight, margin: "0 4px" }} />}
-        <TbBtn onClick={zoomOut} title="Zoom out" compact={isMobile}><Icon d={ICONS.zoomOut} size={15} /></TbBtn>
+        <TbBtn onClick={zoomOut} title="Zoom out" compact={isMobile}><Icon d={ICONS.zoomOut} size={14} /></TbBtn>
         {!isMobile && (
-          <select
-            value={scale}
+          <select value={scale}
             onChange={e => setScale(e.target.value === "fit" ? "fit" : parseFloat(e.target.value))}
-            style={{ height: 28, background: "rgba(255,255,255,0.07)", border: `1px solid ${TOKENS.borderLight}`, borderRadius: 5, color: "#fff", fontSize: 11, padding: "0 4px", cursor: "pointer", outline: "none" }}
-          >
+            style={{ height: 26, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, color: T.chromeText, fontSize: 11, padding: "0 4px", cursor: "pointer", outline: "none" }}>
             {ZOOM_LEVELS.map(z => <option key={z} value={z}>{Math.round(z * 100)}%</option>)}
             <option value="fit">Fit</option>
           </select>
         )}
-        <TbBtn onClick={zoomIn} title="Zoom in" compact={isMobile}><Icon d={ICONS.zoomIn} size={15} /></TbBtn>
+        <TbBtn onClick={zoomIn} title="Zoom in" compact={isMobile}><Icon d={ICONS.zoomIn} size={14} /></TbBtn>
 
-        {/* Bulk unlock button */}
+        {/* Bulk unlock */}
         {perPageCost > 0 && (
           <>
-            <div style={{ width: 1, height: 24, background: TOKENS.borderLight, margin: "0 4px" }} />
-            <TbBtn onClick={() => setShowBulkUnlock(true)} title="Bulk unlock pages" compact={isMobile}>
-              <Icon d={ICONS.unlock} size={15} />
+            <Divider />
+            <TbBtn onClick={() => setShowBulkUnlock(true)} title="Bulk unlock" compact={isMobile}>
+              <Icon d={ICONS.unlock} size={14} />
               {!isMobile && <span>Bulk</span>}
             </TbBtn>
           </>
@@ -1606,13 +1434,13 @@ export default function PDFReader() {
         {/* Desktop tools */}
         {!isMobile && (
           <>
-            <div style={{ width: 1, height: 24, background: TOKENS.borderLight, margin: "0 4px" }} />
+            <Divider />
             {toolModes.map(({ id, icon, label, tip }) => (
               <TbBtn key={id} active={mode === id} onClick={() => { setMode(id); if (id !== "select") toast(tip); }} title={tip}>
-                <Icon d={icon} size={14} /><span>{label}</span>
+                <Icon d={icon} size={13} /><span>{label}</span>
               </TbBtn>
             ))}
-            <div style={{ width: 1, height: 24, background: TOKENS.borderLight, margin: "0 4px" }} />
+            <Divider />
             <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
               {Object.entries(HL_SWATCHES).map(([name, hex]) => (
                 <Swatch key={name} name={name} hex={hex} active={hlColor === name} onClick={setHlColor} />
@@ -1621,24 +1449,25 @@ export default function PDFReader() {
           </>
         )}
 
-        {!isMobile && <div style={{ width: 1, height: 24, background: TOKENS.borderLight, margin: "0 4px" }} />}
-
+        <Divider />
         <TbBtn active={searchOpen} onClick={() => setSearchOpen(o => !o)} title="Search (Ctrl+F)" compact={isMobile}>
           <Icon d={ICONS.search} size={14} />
         </TbBtn>
-        <TbBtn onClick={toggleTheme} title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`} compact={isMobile}>
-          <Icon d={theme === "dark" ? ICONS.sun : ICONS.moon} size={14} />
+
+        {/* PDF theme toggle — sun/moon only affects the canvas */}
+        <TbBtn onClick={togglePdfTheme} title={`PDF: ${pdfTheme === "dark" ? "switch to light" : "switch to dark"}`} compact={isMobile}>
+          <Icon d={pdfTheme === "dark" ? ICONS.sun : ICONS.moon} size={14} />
         </TbBtn>
 
         <div style={{ flex: 1, minWidth: 0 }} />
 
-        {/* Mode badge — desktop only */}
+        {/* Mode pill — desktop */}
         {!isMobile && (
           <div style={{
-            fontSize: 9, padding: "3px 8px", borderRadius: 10,
-            background: "rgba(255,255,255,0.06)", border: `1px solid ${TOKENS.borderLight}`,
-            color: { select: TOKENS.cobalt, highlight: TOKENS.amber, note: TOKENS.rust, bookmark: TOKENS.rosewood }[mode] || "#fff",
-            fontFamily: "monospace", letterSpacing: "0.08em", textTransform: "uppercase", flexShrink: 0,
+            fontSize: 9, padding: "2px 8px", borderRadius: 10,
+            background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)",
+            color: { select: T.blue, highlight: T.amber, note: T.green, bookmark: "#e879f9", remove: T.rose }[mode] || T.chromeText,
+            fontFamily: "monospace", letterSpacing: "0.1em", textTransform: "uppercase", flexShrink: 0,
           }}>
             {mode}
           </div>
@@ -1646,111 +1475,109 @@ export default function PDFReader() {
 
         {!isMobile && walletBalance > 0 && (
           <div style={{
-            display: "flex", alignItems: "center", gap: 5,
-            padding: "4px 10px",
-            background: TOKENS.amberDim, border: `1px solid ${TOKENS.border}`,
-            borderRadius: 20, fontSize: 11, color: TOKENS.amber, fontFamily: "monospace", marginLeft: 4, flexShrink: 0,
+            display: "flex", alignItems: "center", gap: 4, padding: "3px 9px",
+            background: T.greenDim, border: `1px solid ${T.greenBorder}`,
+            borderRadius: 20, fontSize: 11, color: T.green, fontFamily: "monospace", marginLeft: 4, flexShrink: 0,
           }}>
-            <span style={{ fontSize: 12 }}>◆</span>{walletBalance}
+            <span style={{ fontSize: 11 }}>◆</span>{walletBalance}
           </div>
         )}
       </div>
 
-      {/* Body */}
+      {/* ── Body ── */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative", minHeight: 0 }}>
 
-        {/* Sidebar */}
+        {/* ── Sidebar — always dark ── */}
         <div
           onTouchStart={handleSidebarTouchStart}
-          onTouchMove={handleSidebarTouchMove}
           onTouchEnd={handleSidebarTouchEnd}
           style={{
-            width: sidebarOpen ? (isMobile ? "80%" : isTablet ? 280 : 250) : 0,
-            maxWidth: isMobile ? 300 : "none",
+            width: sidebarOpen ? (isMobile ? "78%" : isTablet ? 270 : 240) : 0,
+            maxWidth: isMobile ? 290 : "none",
             flexShrink: 0, overflow: "hidden",
-            transition: "width 0.22s ease",
-            background: sidebarBg,
-            borderRight: isMobile ? "none" : `1px solid ${sidebarBdr}`,
+            transition: "width 0.2s ease",
+            background: T.chromeMid,
+            borderRight: isMobile ? "none" : "1px solid rgba(255,255,255,0.06)",
             display: "flex", flexDirection: "column",
             position: isMobile ? "absolute" : "relative",
-            top: 0, left: 0, height: "100%",
-            zIndex: 100,
-            boxShadow: isMobile && sidebarOpen ? "4px 0 24px rgba(0,0,0,0.35)" : "none",
+            top: 0, left: 0, height: "100%", zIndex: 100,
+            boxShadow: isMobile && sidebarOpen ? "4px 0 28px rgba(0,0,0,0.5)" : "none",
           }}>
-          {/* Mobile close strip */}
+
           {isMobile && sidebarOpen && (
-            <button
-              onClick={() => setSidebarOpen(false)}
-              style={{
-                position: "absolute", top: 12, right: 12,
-                width: 28, height: 28, borderRadius: "50%",
-                background: "rgba(0,0,0,0.1)", border: "none",
-                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                color: sidebarMuted, zIndex: 2,
-              }}
-            >
-              <Icon d={ICONS.x} size={14} />
+            <button onClick={() => setSidebarOpen(false)} style={{
+              position: "absolute", top: 10, right: 10, width: 26, height: 26,
+              borderRadius: "50%", background: "rgba(255,255,255,0.07)", border: "none",
+              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+              color: T.chromeMuted, zIndex: 2,
+            }}>
+              <Icon d={ICONS.x} size={12} />
             </button>
           )}
 
           {/* Tabs */}
-          <div style={{ display: "flex", borderBottom: `1px solid ${sidebarBdr}`, flexShrink: 0, background: sidebarBg }}>
+          <div style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,0.06)", flexShrink: 0, background: T.chromeMid }}>
             {["thumbs", "bookmarks", "notes", "highlights"].map(tab => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                style={{
-                  flex: 1, padding: "10px 2px",
-                  background: "transparent", border: "none",
-                  borderBottom: `2px solid ${activeTab === tab ? TOKENS.rust : "transparent"}`,
-                  color: activeTab === tab ? TOKENS.rust : sidebarMuted,
-                  fontSize: isMobile ? 8 : 10, cursor: "pointer",
-                  fontFamily: "'Georgia', serif", textTransform: "uppercase", letterSpacing: "0.07em",
-                  transition: "all 0.15s", outline: "none",
-                  fontWeight: activeTab === tab ? "bold" : "normal",
-                }}
-              >
+              <button key={tab} onClick={() => setActiveTab(tab)} style={{
+                flex: 1, padding: "9px 2px",
+                background: "transparent", border: "none",
+                borderBottom: `2px solid ${activeTab === tab ? T.green : "transparent"}`,
+                color: activeTab === tab ? T.green : T.chromeMuted,
+                fontSize: isMobile ? 8 : 9, cursor: "pointer",
+                fontFamily: "monospace", textTransform: "uppercase", letterSpacing: "0.07em",
+                transition: "all 0.14s", outline: "none",
+              }}>
                 {tab === "thumbs" ? "Pages" : tab === "highlights" ? "Marks" : tab[0].toUpperCase() + tab.slice(1)}
               </button>
             ))}
           </div>
 
-          <div style={{ flex: 1, overflowY: "auto", padding: "10px 8px", color: sidebarText }}>
+          <div style={{ flex: 1, overflowY: "auto", padding: "8px 7px", color: T.chromeText }}>
             {activeTab === "thumbs" && pdf && (
               <ThumbnailStrip pdf={pdf} totalPages={totalPages} currentPage={currentPage} onGoTo={(n) => { goToPage(n); if (isMobile) setSidebarOpen(false); }} />
             )}
             {activeTab === "bookmarks" && (
-              bookmarks.length === 0 ? <EmptyState icon="◆" text={"No bookmarks yet.\nUse Bookmark mode and click a page."} /> : (
+              bookmarks.length === 0 ? <EmptyState icon="◆" text={"No bookmarks yet.\nUse Bookmark mode and\nclick any page."} /> : (
                 [...bookmarks].sort((a, b) => a.page - b.page).map(bm => (
-                  <div key={bm.id} onClick={() => { goToPage(bm.page); if (isMobile) setSidebarOpen(false); }} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "8px 10px", borderRadius: 6, cursor: "pointer", marginBottom: 4 }} onMouseEnter={e => e.currentTarget.style.background = isLight ? TOKENS.parchmentMid : TOKENS.amberDim} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                    <span style={{ color: TOKENS.amber, fontSize: 12, marginTop: 1 }}>◆</span>
+                  <div key={bm.id} onClick={() => { goToPage(bm.page); if (isMobile) setSidebarOpen(false); }}
+                    style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "8px 9px", borderRadius: 6, cursor: "pointer", marginBottom: 3, transition: "background 0.1s" }}
+                    onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                    <span style={{ color: T.green, fontSize: 11, marginTop: 1 }}>◆</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 9, color: sidebarMuted, fontFamily: "monospace", letterSpacing: "0.06em" }}>PAGE {bm.page}</div>
-                      <div style={{ fontSize: 12, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{bm.title}</div>
+                      <div style={{ fontSize: 8, color: T.chromeMuted, fontFamily: "monospace", letterSpacing: "0.08em" }}>PAGE {bm.page}</div>
+                      <div style={{ fontSize: 11, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{bm.title}</div>
                     </div>
-                    <span onClick={e => { e.stopPropagation(); setBookmarks(prev => prev.filter(b => b.id !== bm.id)); toast("Removed"); }} style={{ fontSize: 11, color: sidebarMuted, cursor: "pointer", padding: "0 2px", flexShrink: 0 }}>✕</span>
+                    <span onClick={e => { e.stopPropagation(); setBookmarks(prev => prev.filter(b => b.id !== bm.id)); toast("Removed"); }} style={{ fontSize: 10, color: T.chromeDim, cursor: "pointer", padding: "0 2px", flexShrink: 0 }}>✕</span>
                   </div>
                 ))
               )
             )}
             {activeTab === "notes" && (
-              notes.length === 0 ? <EmptyState icon="✎" text={"No notes yet.\nUse Note mode and drag a region."} /> : (
+              notes.length === 0 ? <EmptyState icon="✎" text={"No notes yet.\nUse Note mode and\ndrag a region."} /> : (
                 [...notes].sort((a, b) => a.page - b.page).map(n => (
-                  <div key={n.id} onClick={() => goToPage(n.page)} style={{ background: isLight ? "#fffdf5" : "rgba(255,255,255,0.04)", border: `1px solid ${isLight ? "rgba(34,197,94,0.2)" : TOKENS.border}`, borderLeft: `3px solid ${TOKENS.amber}`, borderRadius: 6, padding: "9px 10px", marginBottom: 8, cursor: "pointer", position: "relative" }}>
-                    <div style={{ fontSize: 9, color: sidebarMuted, fontFamily: "monospace", marginBottom: 4, letterSpacing: "0.05em" }}>P.{n.page} · {new Date(n.createdAt).toLocaleDateString()}</div>
-                    <div style={{ fontSize: 12, lineHeight: 1.6, wordBreak: "break-word" }}>{n.text}</div>
-                    <span onClick={e => { e.stopPropagation(); setNotes(prev => prev.filter(x => x.id !== n.id)); toast("Removed"); }} style={{ position: "absolute", top: 7, right: 8, fontSize: 11, color: sidebarMuted, cursor: "pointer" }}>✕</span>
+                  <div key={n.id} onClick={() => goToPage(n.page)} style={{
+                    background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)",
+                    borderLeft: `2.5px solid ${T.green}`,
+                    borderRadius: 6, padding: "9px 10px", marginBottom: 7, cursor: "pointer", position: "relative",
+                  }}>
+                    <div style={{ fontSize: 8, color: T.chromeMuted, fontFamily: "monospace", marginBottom: 3, letterSpacing: "0.05em" }}>P.{n.page} · {new Date(n.createdAt).toLocaleDateString()}</div>
+                    <div style={{ fontSize: 11, lineHeight: 1.65, wordBreak: "break-word", color: "rgba(255,255,255,0.75)" }}>{n.text}</div>
+                    <span onClick={e => { e.stopPropagation(); setNotes(prev => prev.filter(x => x.id !== n.id)); toast("Removed"); }} style={{ position: "absolute", top: 7, right: 8, fontSize: 10, color: T.chromeDim, cursor: "pointer" }}>✕</span>
                   </div>
                 ))
               )
             )}
             {activeTab === "highlights" && (
-              highlights.length === 0 ? <EmptyState icon="◐" text={"No highlights yet.\nUse Highlight mode and drag."} /> : (
+              highlights.length === 0 ? <EmptyState icon="◐" text={"No highlights yet.\nUse Highlight mode\nand drag."} /> : (
                 [...highlights].sort((a, b) => a.page - b.page).map(hl => (
-                  <div key={hl.id} onClick={() => goToPage(hl.page)} style={{ padding: "8px 10px", borderRadius: 6, marginBottom: 7, cursor: "pointer", background: HL_COLORS[hl.color] || HL_COLORS.yellow, position: "relative", fontSize: 12 }}>
-                    <div style={{ fontSize: 9, fontFamily: "monospace", marginBottom: 3, opacity: 0.65, letterSpacing: "0.05em", color: TOKENS.inkBrown }}>PAGE {hl.page}</div>
-                    <div style={{ fontStyle: hl.note ? "normal" : "italic", opacity: hl.note ? 1 : 0.55, color: TOKENS.inkBrown }}>{hl.note || "Highlighted region"}</div>
-                    <span onClick={e => { e.stopPropagation(); setHighlights(prev => prev.filter(h => h.id !== hl.id)); toast("Removed"); }} style={{ position: "absolute", top: 7, right: 8, fontSize: 11, cursor: "pointer", opacity: 0.5, color: TOKENS.inkBrown }}>✕</span>
+                  <div key={hl.id} onClick={() => goToPage(hl.page)} style={{
+                    padding: "8px 10px", borderRadius: 6, marginBottom: 6, cursor: "pointer",
+                    background: HL_COLORS[hl.color] || HL_COLORS.yellow, position: "relative", fontSize: 11,
+                  }}>
+                    <div style={{ fontSize: 8, fontFamily: "monospace", marginBottom: 2, opacity: 0.6, letterSpacing: "0.06em", color: "#111" }}>PAGE {hl.page}</div>
+                    <div style={{ fontStyle: hl.note ? "normal" : "italic", opacity: hl.note ? 1 : 0.55, color: "#111" }}>{hl.note || "Highlighted region"}</div>
+                    <span onClick={e => { e.stopPropagation(); setHighlights(prev => prev.filter(h => h.id !== hl.id)); toast("Removed"); }} style={{ position: "absolute", top: 6, right: 8, fontSize: 10, cursor: "pointer", opacity: 0.45, color: "#111" }}>✕</span>
                   </div>
                 ))
               )
@@ -1760,13 +1587,10 @@ export default function PDFReader() {
 
         {/* Mobile sidebar backdrop */}
         {isMobile && sidebarOpen && (
-          <div
-            onClick={() => setSidebarOpen(false)}
-            style={{ position: "absolute", inset: 0, zIndex: 90, background: "rgba(0,0,0,0.4)" }}
-          />
+          <div onClick={() => setSidebarOpen(false)} style={{ position: "absolute", inset: 0, zIndex: 90, background: "rgba(0,0,0,0.45)" }} />
         )}
 
-        {/* PDF Viewer */}
+        {/* ── PDF Viewer — bg changes with pdfTheme ── */}
         <div
           ref={viewerRef}
           onScroll={handleViewerScroll}
@@ -1774,63 +1598,58 @@ export default function PDFReader() {
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
           style={{
-            flex: 1,
-            overflowY: "auto",
-            overflowX: "hidden",      // ← prevent horizontal overflow
-            background: isLight ? TOKENS.parchment : TOKENS.surfaceMid,
+            flex: 1, overflowY: "auto", overflowX: "hidden",
+            // This is the only area where pdfTheme affects background
+            background: pdfTheme === "light" ? T.viewerLight : T.viewerDark,
             display: "flex", flexDirection: "column", alignItems: "center",
-            // Enough bottom padding so FAB doesn't obscure last page
-            padding: isMobile ? "0 0 80px" : "0 24px 80px",
-            gap: 0,
-            minWidth: 0,
-            // Needed for position:absolute children not to overflow
-            position: "relative",
+            padding: isMobile ? "12px 0 80px" : "24px 24px 80px",
+            gap: isMobile ? 8 : 12,
+            minWidth: 0, position: "relative",
+            transition: "background 0.25s ease",
           }}
         >
           {loading && (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1, gap: 20, padding: "80px 20px" }}>
-              <div style={{ fontStyle: "italic", fontSize: 22, color: TOKENS.amber, letterSpacing: "0.06em" }}>Dkituyiacademy</div>
-              <Spinner size={36} />
-              <div style={{ fontSize: 13, color: TOKENS.dimText, fontFamily: "monospace", letterSpacing: "0.04em" }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1, gap: 16, padding: "80px 20px" }}>
+              <div style={{ fontStyle: "italic", fontSize: 20, color: T.green, letterSpacing: "0.06em" }}>Dkituyiacademy</div>
+              <Spinner size={32} />
+              <div style={{ fontSize: 12, color: T.chromeMuted, fontFamily: "monospace", letterSpacing: "0.04em" }}>
                 {!book ? "Loading book…" : !pdf ? "Loading PDF…" : "Preparing reader…"}
               </div>
             </div>
           )}
 
           {loadError && (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1, gap: 14, padding: "80px 20px", textAlign: "center" }}>
-              <div style={{ fontSize: 36, opacity: 0.3 }}>⚠</div>
-              <div style={{ fontSize: 16, color: TOKENS.rosewood }}>Could not load document</div>
-              <div style={{ fontSize: 13, color: TOKENS.dimText, maxWidth: 300, lineHeight: 1.7 }}>Please try again.</div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1, gap: 12, padding: "80px 20px", textAlign: "center" }}>
+              <div style={{ fontSize: 32, opacity: 0.25 }}>⚠</div>
+              <div style={{ fontSize: 15, color: T.rose }}>Could not load document</div>
+              <div style={{ fontSize: 12, color: T.chromeMuted, maxWidth: 280, lineHeight: 1.75 }}>Please check your connection and try again.</div>
             </div>
           )}
 
-          {/* Pages */}
           {!loading && !loadError && pdf && Array.from({ length: totalPages }, (_, i) => i + 1).map(n => {
             const locked  = !isPageUnlocked(n);
             const showCTA = shouldShowUnlockCTA(n);
+            console.log(`DEBUG: Page ${n} - locked: ${locked}, showCTA: ${showCTA}, unlockedPages.size: ${unlockedPages.size}`);
             return (
-              <div
-                key={`${n}-${renderKey}`}
-                ref={el => { if (el) pageRefs.current[n] = el; }}
-                style={{
-                  width: "100%",
-                  display: "flex", justifyContent: "center",
-                }}
-              >
+              <div key={`${n}-${renderKey}`} ref={el => { if (el) pageRefs.current[n] = el; }}
+                style={{ width: "100%", display: "flex", justifyContent: "center" }}>
                 <PageCanvas
                   pdf={pdf} pageNum={n} scale={scale}
                   highlights={highlights} mode={mode} hlColor={hlColor}
-                  onHighlight={handleHighlight} onNote={handleNote} onBookmark={handleBookmark} onRemoveHighlight={handleRemoveHighlight}
-                  isMobile={isMobile}
-                  isLocked={locked}
-                  showUnlockCTA={showCTA}
+                  onHighlight={handleHighlight} onNote={handleNote}
+                  onBookmark={handleBookmark} onRemoveHighlight={handleRemoveHighlight}
+                  isMobile={isMobile} isLocked={locked} showUnlockCTA={showCTA}
                   perPageCost={perPageCost} walletBalance={walletBalance}
                   onUnlockPage={handleInlineUnlock}
-                  isLight={isLight}
+                  pdfTheme={pdfTheme}  // ← only this prop, not global isLight
                   isCompleted={completedPages.has(n)}
                   onMarkCompleted={() => markPageCompleted(n)}
                   isPageUnlocked={isPageUnlocked}
+                  chapters={chapters} unlockedChapters={unlockedChapters}
+                  onUnlockChapter={unlockChapter}
+                  currentPage={currentPage} setCurrentPage={setCurrentPage}
+                  setPageInput={setPageInput} setProgress={setProgress}
+                  totalPages={totalPages} pageRefs={pageRefs} toast={toast}
                 />
               </div>
             );
@@ -1838,18 +1657,16 @@ export default function PDFReader() {
 
           {/* Preview End CTA */}
           {isPreviewMode() && totalPages > 0 && !loading && (
-            <div style={{ padding: "48px 24px", textAlign: "center", width: "100%", maxWidth: 520, background: isLight ? TOKENS.parchmentMid : TOKENS.surfaceDark, borderRadius: 16, border: `1px solid ${TOKENS.border}` }}>
-              <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(34,197,94,0.1)", border: `2px solid ${TOKENS.amber}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
-                <Icon d={ICONS.lock} size={28} />
+            <div style={{ padding: "44px 24px", textAlign: "center", width: "100%", maxWidth: 480, background: "#111", borderRadius: 14, border: "1px solid rgba(255,255,255,0.08)", marginTop: 16 }}>
+              <div style={{ width: 56, height: 56, borderRadius: "50%", background: T.greenDim, border: `1.5px solid ${T.greenBorder}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+                <Icon d={ICONS.lock} size={24} />
               </div>
-              <h2 style={{ fontSize: isMobile ? 22 : 26, color: isLight ? TOKENS.inkBrown : TOKENS.bodyText, fontFamily: "'Georgia', serif", fontStyle: "italic", marginBottom: 12 }}>
-                Preview Complete
-              </h2>
-              <p style={{ fontSize: isMobile ? 14 : 16, color: isLight ? TOKENS.warmGray : TOKENS.subtleText, lineHeight: 1.7, marginBottom: 28 }}>
+              <h2 style={{ fontSize: isMobile ? 20 : 24, color: "#fff", fontFamily: "'Georgia', serif", fontStyle: "italic", marginBottom: 10 }}>Preview Complete</h2>
+              <p style={{ fontSize: isMobile ? 13 : 15, color: T.chromeMuted, lineHeight: 1.75, marginBottom: 24 }}>
                 You've reached the end of your free preview ({Math.max(1, Math.ceil(totalPages * 0.2))} pages).{" "}
                 {token ? "Add to your library to read the full book." : "Sign in to continue reading."}
               </p>
-              <div style={{ display: "flex", gap: 12, justifyContent: "center", flexDirection: isMobile ? "column" : "row" }}>
+              <div style={{ display: "flex", gap: 10, justifyContent: "center", flexDirection: isMobile ? "column" : "row" }}>
                 {token ? (
                   <button onClick={async () => {
                     try {
@@ -1857,15 +1674,15 @@ export default function PDFReader() {
                       toast("Added to library! Redirecting…");
                       setTimeout(() => navigate(`/reader/${bookId}`), 1500);
                     } catch (err) { toast(err.response?.data?.error || "Failed to add to library"); }
-                  }} style={{ padding: "12px 28px", background: "linear-gradient(135deg, #16a34a, #22c55e)", border: "none", borderRadius: 8, fontSize: 15, cursor: "pointer", color: "#fff", fontFamily: "'Georgia', serif", fontWeight: 600 }}>
+                  }} style={{ padding: "11px 24px", background: `linear-gradient(135deg, ${T.greenDeep}, ${T.green})`, border: "none", borderRadius: 8, fontSize: 14, cursor: "pointer", color: "#fff", fontFamily: "'Georgia', serif" }}>
                     Add to Library
                   </button>
                 ) : (
-                  <button onClick={() => { window.location.href = `/login?redirect=/reader/${bookId}`; }} style={{ padding: "12px 28px", background: "linear-gradient(135deg, #16a34a, #22c55e)", border: "none", borderRadius: 8, fontSize: 15, cursor: "pointer", color: "#fff", fontFamily: "'Georgia', serif", fontWeight: 600 }}>
+                  <button onClick={() => { window.location.href = `/login?redirect=/reader/${bookId}`; }} style={{ padding: "11px 24px", background: `linear-gradient(135deg, ${T.greenDeep}, ${T.green})`, border: "none", borderRadius: 8, fontSize: 14, cursor: "pointer", color: "#fff", fontFamily: "'Georgia', serif" }}>
                     Sign In to Continue
                   </button>
                 )}
-                <button onClick={() => navigate("/books")} style={{ padding: "12px 28px", background: "transparent", border: `1px solid ${TOKENS.border}`, borderRadius: 8, fontSize: 15, cursor: "pointer", color: isLight ? TOKENS.inkBrown : TOKENS.bodyText, fontFamily: "'Georgia', serif" }}>
+                <button onClick={() => navigate("/books")} style={{ padding: "11px 24px", background: "transparent", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 14, cursor: "pointer", color: T.chromeMuted, fontFamily: "'Georgia', serif" }}>
                   Browse Books
                 </button>
               </div>
@@ -1874,108 +1691,58 @@ export default function PDFReader() {
         </div>
       </div>
 
-      {/* ─── Floating annotation toolbar — always visible ─────────────────── */}
+      {/* ── Floating annotation toolbar ── */}
       <div style={{
-        position: "fixed",
-        right: isMobile ? 16 : 20,
-        top: "50%",
-        transform: "translateY(-50%)",
-        display: "flex",
-        flexDirection: "column",
-        gap: isMobile ? 8 : 12,
-        zIndex: 1000,
-        pointerEvents: "none",
+        position: "fixed", right: isMobile ? 14 : 18, top: "50%", transform: "translateY(-50%)",
+        display: "flex", flexDirection: "column", gap: isMobile ? 7 : 10,
+        zIndex: 1000, pointerEvents: "none",
       }}>
         {toolModes.map(({ id, icon, tip }) => (
-          <button
-            key={id}
-            onClick={() => { setMode(id); if (id !== "select") toast(tip); }}
-            title={tip}
-            style={{
-              width: isMobile ? 40 : 48,
-              height: isMobile ? 40 : 48,
-              borderRadius: "50%",
-              background: mode === id
-                ? `linear-gradient(135deg, ${TOKENS.rust}, ${TOKENS.amber})`
-                : isLight ? "rgba(255,255,255,0.95)" : "rgba(30,20,15,0.95)",
-              border: `2px solid ${mode === id ? TOKENS.rustLight : isLight ? TOKENS.parchmentDim : TOKENS.borderLight}`,
-              color: mode === id ? "#fff" : isLight ? TOKENS.rust : TOKENS.amber,
-              cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              boxShadow: mode === id
-                ? `0 4px 16px rgba(22,163,74,0.4)`
-                : isLight ? "0 4px 12px rgba(0,0,0,0.15)" : "0 4px 12px rgba(0,0,0,0.3)",
-              transition: "all 0.2s ease",
-              pointerEvents: "auto",
-            }}
-            onMouseEnter={e => {
-              if (mode !== id) {
-                e.currentTarget.style.transform = "scale(1.1)";
-              }
-            }}
-            onMouseLeave={e => {
-              if (mode !== id) {
-                e.currentTarget.style.transform = "scale(1)";
-              }
-            }}
-          >
-            <Icon d={icon} size={isMobile ? 18 : 20} />
+          <button key={id} onClick={() => { setMode(id); if (id !== "select") toast(tip); }} title={tip} style={{
+            width: isMobile ? 38 : 44, height: isMobile ? 38 : 44, borderRadius: "50%",
+            background: mode === id
+              ? `linear-gradient(135deg, ${T.greenDeep}, ${T.green})`
+              : "rgba(20,20,20,0.96)",
+            border: `1.5px solid ${mode === id ? T.greenBorder : "rgba(255,255,255,0.1)"}`,
+            color: mode === id ? "#fff" : T.chromeMuted,
+            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+            boxShadow: mode === id ? `0 3px 14px rgba(34,197,94,0.35)` : "0 3px 10px rgba(0,0,0,0.4)",
+            transition: "all 0.18s ease", pointerEvents: "auto",
+          }}
+            onMouseEnter={e => { if (mode !== id) e.currentTarget.style.transform = "scale(1.1)"; }}
+            onMouseLeave={e => { if (mode !== id) e.currentTarget.style.transform = "scale(1)"; }}>
+            <Icon d={icon} size={isMobile ? 16 : 18} />
           </button>
         ))}
 
-        {/* Bulk unlock button for mobile */}
         {isMobile && perPageCost > 0 && (
-          <button
-            onClick={() => setShowBulkUnlock(true)}
-            title="Bulk unlock pages"
-            style={{
-              width: isMobile ? 40 : 48,
-              height: isMobile ? 40 : 48,
-              borderRadius: "50%",
-              background: `linear-gradient(135deg, ${TOKENS.rust}, ${TOKENS.amber})`,
-              border: `2px solid ${TOKENS.rustLight}`,
-              color: "#fff",
-              cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              boxShadow: "0 4px 16px rgba(22,163,74,0.4)",
-              marginTop: isMobile ? 8 : 12,
-              transition: "all 0.2s ease",
-              pointerEvents: "auto",
-            }}
-          >
-            <Icon d={ICONS.unlock} size={isMobile ? 18 : 20} />
+          <button onClick={() => setShowBulkUnlock(true)} style={{
+            width: 38, height: 38, borderRadius: "50%",
+            background: `linear-gradient(135deg, ${T.greenDeep}, ${T.green})`,
+            border: `1.5px solid ${T.greenBorder}`, color: "#fff",
+            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+            boxShadow: "0 3px 14px rgba(34,197,94,0.35)", marginTop: 7, pointerEvents: "auto",
+          }}>
+            <Icon d={ICONS.unlock} size={16} />
           </button>
         )}
 
-        {/* Color swatches — shown when highlight mode is active */}
         {mode === "highlight" && (
           <div style={{
-            display: "flex", flexDirection: "column",
-            gap: isMobile ? 5 : 6,
+            display: "flex", flexDirection: "column", gap: isMobile ? 5 : 6,
             padding: isMobile ? 6 : 8,
-            background: isLight ? TOKENS.parchmentMid : TOKENS.surfaceDeep,
-            border: `1px solid ${isLight ? TOKENS.parchmentDim : TOKENS.border}`,
-            borderRadius: 12,
-            boxShadow: isLight ? "0 4px 12px rgba(0,0,0,0.15)" : "0 4px 12px rgba(0,0,0,0.3)",
-            pointerEvents: "auto",
+            background: "rgba(18,18,18,0.97)", border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: 12, boxShadow: "0 4px 14px rgba(0,0,0,0.4)", pointerEvents: "auto",
           }}>
             {Object.entries(HL_SWATCHES).map(([name, hex]) => (
-              <button
-                key={name}
-                onClick={() => setHlColor(name)}
-                title={name}
-                style={{
-                  width: isMobile ? 26 : 30,
-                  height: isMobile ? 26 : 30,
-                  borderRadius: "50%",
-                  background: hex,
-                  border: hlColor === name ? "3px solid #fff" : "3px solid transparent",
-                  boxShadow: hlColor === name ? `0 0 0 2px ${hex}` : "none",
-                  cursor: "pointer",
-                  transform: hlColor === name ? "scale(1.2)" : "scale(1)",
-                  transition: "all 0.15s ease",
-                }}
-              />
+              <button key={name} onClick={() => setHlColor(name)} title={name} style={{
+                width: isMobile ? 24 : 28, height: isMobile ? 24 : 28, borderRadius: "50%",
+                background: hex, border: hlColor === name ? "2.5px solid #fff" : "2.5px solid transparent",
+                boxShadow: hlColor === name ? `0 0 0 1.5px ${hex}` : "none",
+                cursor: "pointer",
+                transform: hlColor === name ? "scale(1.25)" : "scale(1)",
+                transition: "all 0.13s ease",
+              }} />
             ))}
           </div>
         )}
@@ -1989,36 +1756,27 @@ export default function PDFReader() {
           top: isMobile ? "auto" : annotPopup.y,
           bottom: isMobile ? 0 : "auto",
           right: isMobile ? 16 : "auto",
-          background: isLight ? TOKENS.parchment : "#1e1510",
-          border: `1px solid ${isLight ? TOKENS.parchmentDim : TOKENS.border}`,
+          background: "#111", border: "1px solid rgba(255,255,255,0.1)",
           borderRadius: isMobile ? "12px 12px 0 0" : 10,
-          boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
-          padding: 14,
-          width: isMobile ? "auto" : 248,
-          zIndex: 600,
+          boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+          padding: 14, width: isMobile ? "auto" : 244, zIndex: 600,
         }}>
-          <div style={{ fontSize: 10, color: TOKENS.warmGray, marginBottom: 9, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: "monospace" }}>
-            Note — Page {annotPopup.pageNum}
+          <div style={{ fontSize: 9, color: T.chromeMuted, marginBottom: 9, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: "monospace" }}>
+            Note · Page {annotPopup.pageNum}
           </div>
-          <textarea
-            autoFocus
-            value={annotText}
-            onChange={e => setAnnotText(e.target.value)}
-            placeholder="Type your note…"
-            onKeyDown={e => { if (e.key === "Enter" && e.ctrlKey) saveAnnot(); }}
+          <textarea autoFocus value={annotText} onChange={e => setAnnotText(e.target.value)}
+            placeholder="Type your note…" onKeyDown={e => { if (e.key === "Enter" && e.ctrlKey) saveAnnot(); }}
             style={{
-              width: "100%", minHeight: 80,
-              border: `1px solid ${isLight ? TOKENS.parchmentDim : TOKENS.border}`,
-              borderRadius: 5, padding: 8,
-              fontFamily: "'Georgia', serif", fontSize: 13,
-              color: isLight ? TOKENS.inkBrown : TOKENS.bodyText,
-              background: isLight ? "#fffdf8" : "rgba(255,255,255,0.05)",
-              resize: "vertical", outline: "none", boxSizing: "border-box", lineHeight: 1.6,
+              width: "100%", minHeight: 76,
+              border: "1px solid rgba(255,255,255,0.08)", borderRadius: 5, padding: 8,
+              fontFamily: "'Georgia', serif", fontSize: 12,
+              color: T.chromeText, background: "rgba(255,255,255,0.04)",
+              resize: "vertical", outline: "none", boxSizing: "border-box", lineHeight: 1.65,
             }}
           />
           <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", marginTop: 8 }}>
-            <button onClick={() => setAnnotPopup(null)} style={{ padding: "5px 12px", borderRadius: 5, fontSize: 12, cursor: "pointer", background: "transparent", border: `1px solid ${isLight ? TOKENS.parchmentDim : TOKENS.borderLight}`, color: TOKENS.warmGray, fontFamily: "'Georgia', serif" }}>Cancel</button>
-            <button onClick={saveAnnot} style={{ padding: "5px 12px", borderRadius: 5, fontSize: 12, cursor: "pointer", background: "linear-gradient(135deg, #16a34a, #22c55e)", border: `1px solid ${TOKENS.rustLight}`, color: "#fff", fontFamily: "'Georgia', serif" }}>Save</button>
+            <button onClick={() => setAnnotPopup(null)} style={{ padding: "5px 11px", borderRadius: 5, fontSize: 11, cursor: "pointer", background: "transparent", border: "1px solid rgba(255,255,255,0.1)", color: T.chromeMuted, fontFamily: "'Georgia', serif" }}>Cancel</button>
+            <button onClick={saveAnnot} style={{ padding: "5px 11px", borderRadius: 5, fontSize: 11, cursor: "pointer", background: `linear-gradient(135deg, ${T.greenDeep}, ${T.green})`, border: `1px solid ${T.greenBorder}`, color: "#fff", fontFamily: "'Georgia', serif" }}>Save</button>
           </div>
         </div>
       )}
@@ -2026,28 +1784,26 @@ export default function PDFReader() {
       {/* Search panel */}
       {searchOpen && (
         <div style={{
-          position: "fixed",
-          top: isMobile ? 52 : 60, right: 16,
-          background: isLight ? TOKENS.parchment : "#1a1208",
-          border: `1px solid ${sidebarBdr}`,
-          borderRadius: 10, boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
-          padding: 14,
-          width: isMobile ? Math.min(window.innerWidth - 32, 300) : 288,
-          zIndex: 400,
+          position: "fixed", top: isMobile ? 50 : 58, right: 14,
+          background: "#111", border: "1px solid rgba(255,255,255,0.1)",
+          borderRadius: 10, boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+          padding: 14, width: isMobile ? Math.min(window.innerWidth - 28, 296) : 280, zIndex: 400,
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-            <span style={{ fontSize: 12, color: sidebarMuted, fontFamily: "monospace", letterSpacing: "0.06em", textTransform: "uppercase" }}>Search</span>
-            <button onClick={() => setSearchOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: sidebarMuted, padding: 2, display: "flex" }}><Icon d={ICONS.x} size={14} /></button>
+            <span style={{ fontSize: 9, color: T.chromeMuted, fontFamily: "monospace", letterSpacing: "0.1em", textTransform: "uppercase" }}>Search</span>
+            <button onClick={() => setSearchOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: T.chromeMuted, padding: 2, display: "flex" }}><Icon d={ICONS.x} size={13} /></button>
           </div>
-          <input
-            autoFocus value={searchText}
-            onChange={e => handleSearch(e.target.value)}
+          <input autoFocus value={searchText} onChange={e => handleSearch(e.target.value)}
             placeholder="Search in document…"
-            style={{ width: "100%", height: 34, border: `1px solid ${sidebarBdr}`, borderRadius: 5, padding: "0 10px", fontFamily: "'Georgia', serif", fontSize: 13, color: isLight ? TOKENS.inkBrown : TOKENS.bodyText, background: isLight ? "#fffdf8" : "rgba(255,255,255,0.06)", marginBottom: 8, boxSizing: "border-box", outline: "none" }}
+            style={{
+              width: "100%", height: 32, border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: 5, padding: "0 10px", fontFamily: "'Georgia', serif", fontSize: 12,
+              color: T.chromeText, background: "rgba(255,255,255,0.04)", marginBottom: 8, boxSizing: "border-box", outline: "none",
+            }}
           />
           {searchPages.length > 0 && (
-            <div style={{ fontSize: 11, color: TOKENS.rust, marginBottom: 8, fontFamily: "monospace" }}>
-              {searchPages.length} page{searchPages.length > 1 ? "s" : ""} — {searchIdx + 1}/{searchPages.length}
+            <div style={{ fontSize: 10, color: T.green, marginBottom: 8, fontFamily: "monospace" }}>
+              {searchPages.length} match{searchPages.length > 1 ? "es" : ""} · {searchIdx + 1}/{searchPages.length}
             </div>
           )}
           <div style={{ display: "flex", gap: 6 }}>
@@ -2056,7 +1812,7 @@ export default function PDFReader() {
                 if (!searchPages.length) return;
                 const idx = ((searchIdx + (i === 0 ? -1 : 1)) + searchPages.length) % searchPages.length;
                 setSearchIdx(idx); goToPage(searchPages[idx]);
-              }} style={{ flex: 1, padding: "6px 0", borderRadius: 5, fontSize: 12, cursor: "pointer", background: "transparent", border: `1px solid ${sidebarBdr}`, color: sidebarMuted, fontFamily: "'Georgia', serif" }}>
+              }} style={{ flex: 1, padding: "5px 0", borderRadius: 5, fontSize: 11, cursor: "pointer", background: "transparent", border: "1px solid rgba(255,255,255,0.1)", color: T.chromeMuted, fontFamily: "'Georgia', serif" }}>
                 {label}
               </button>
             ))}
@@ -2064,73 +1820,46 @@ export default function PDFReader() {
         </div>
       )}
 
-      {/* Mobile Floating Action Button for Complete */}
+      {/* Mobile complete FAB */}
       {isMobile && !isPreviewMode() && (
-        <button
-          onClick={() => markPageCompleted(currentPage)}
-          style={{
-            position: "fixed",
-            bottom: 20,
-            right: 20,
-            width: 60,
-            height: 60,
-            borderRadius: "50%",
-            background: completedPages.has(currentPage)
-              ? 'linear-gradient(135deg, #10b981, #059669)'
-              : 'linear-gradient(135deg, #f59e0b, #d97706)',
-            border: 'none',
-            boxShadow: completedPages.has(currentPage)
-              ? '0 4px 16px rgba(16, 185, 129, 0.4)'
-              : '0 4px 16px rgba(245, 158, 11, 0.4)',
-            cursor: 'pointer',
-            zIndex: 600,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'all 0.3s ease',
-            transform: completedPages.has(currentPage) ? 'scale(1.1)' : 'scale(1)',
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.transform = 'scale(1.2)';
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.transform = completedPages.has(currentPage) ? 'scale(1.1)' : 'scale(1)';
-          }}
-        >
-          <span style={{
-            color: '#fff',
-            fontSize: 24,
-            fontWeight: 'bold',
-            textShadow: '0 2px 4px rgba(0,0,0,0.3)',
-          }}>
-            {completedPages.has(currentPage) ? '!' : '?'}
-          </span>
+        <button onClick={() => markPageCompleted(currentPage)} style={{
+          position: "fixed", bottom: 18, left: 18,
+          width: 52, height: 52, borderRadius: "50%",
+          background: completedPages.has(currentPage)
+            ? "linear-gradient(135deg, #10b981, #059669)"
+            : "rgba(20,20,20,0.95)",
+          border: `1.5px solid ${completedPages.has(currentPage) ? "rgba(16,185,129,0.5)" : "rgba(255,255,255,0.1)"}`,
+          boxShadow: completedPages.has(currentPage) ? "0 3px 14px rgba(16,185,129,0.35)" : "0 3px 10px rgba(0,0,0,0.4)",
+          cursor: "pointer", zIndex: 600,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          transition: "all 0.22s ease",
+        }}>
+          <Icon d={completedPages.has(currentPage) ? ICONS.check : ICONS.bookmark} size={20} />
         </button>
       )}
 
       {/* Toast */}
       <div style={{
-        position: "fixed",
-        bottom: isMobile ? 90 : 24,  // above FAB on mobile
-        left: "50%", transform: "translateX(-50%)",
-        background: TOKENS.surfaceDeep, color: TOKENS.bodyText,
-        padding: "7px 18px", borderRadius: 20, fontSize: 12, zIndex: 700,
-        opacity: toastVisible ? 1 : 0, transition: "opacity 0.25s ease",
-        pointerEvents: "none",
-        border: `1px solid ${TOKENS.border}`,
-        boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
+        position: "fixed", bottom: isMobile ? 86 : 22, left: "50%", transform: "translateX(-50%)",
+        background: "rgba(10,10,10,0.96)", color: T.chromeText,
+        padding: "6px 16px", borderRadius: 20, fontSize: 11, zIndex: 700,
+        opacity: toastVisible ? 1 : 0, transition: "opacity 0.22s ease",
+        pointerEvents: "none", border: "1px solid rgba(255,255,255,0.08)",
+        boxShadow: "0 4px 18px rgba(0,0,0,0.5)",
         fontFamily: "monospace", letterSpacing: "0.04em", whiteSpace: "nowrap",
       }}>
         {toastMsg}
       </div>
 
+      {showUnlockPrompt && pendingPage && <UnlockModal />}
+
       <style>{`
         @keyframes pdfrSpin { to { transform: rotate(360deg); } }
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(34,197,94,0.25); border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(34,197,94,0.45); }
-        select option { background: #111; color: #f0e6d3; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+        select option { background: #111; color: #fff; }
         * { box-sizing: border-box; }
         body { overflow: hidden; }
       `}</style>

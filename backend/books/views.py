@@ -1,3 +1,7 @@
+import re
+import io
+import logging
+import os
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
@@ -11,8 +15,6 @@ from django.conf import settings
 from django.utils.encoding import smart_str
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-import os
-import logging
 
 from .models import Book, BookReview
 from .serializers import BookSerializer, BookListSerializer, BookReviewSerializer, PublicBookSerializer
@@ -92,7 +94,7 @@ class BookViewSet(viewsets.ModelViewSet):
         permissions = [permission() for permission in permission_classes]
         print(f"DEBUG: Permission classes: {[p.__class__.__name__ for p in permissions]}")
         return permissions
-
+    
     def get_serializer_class(self):
         if self.action == 'list':
             return BookListSerializer
@@ -171,107 +173,6 @@ class BookViewSet(viewsets.ModelViewSet):
             book.rating = round(avg_rating, 2)
             book.rating_count = book.reviews.count()
             book.save()
-
-
-class PDFMetadataExtractionView(APIView):
-    """
-    Extract metadata from uploaded PDF file
-    """
-    permission_classes = [IsStaffUser]
-    
-    def post(self, request):
-        try:
-            pdf_file = request.FILES.get('pdf_file')
-            if not pdf_file:
-                return Response({'error': 'No PDF file provided'}, status=400)
-            
-            if not pdf_file.name.lower().endswith('.pdf'):
-                return Response({'error': 'File must be a PDF'}, status=400)
-            
-            metadata = {}
-            
-            try:
-                # Extract PDF metadata using PyPDF2
-                import PyPDF2
-                import io
-                
-                # Read the PDF file
-                pdf_content = pdf_file.read()
-                pdf_reader = PyPDF2.PdfReader(io.BytesIO(pdf_content))
-                
-                # Extract basic metadata
-                if pdf_reader.metadata:
-                    metadata.update({
-                        'title': pdf_reader.metadata.get('/Title', '').strip(),
-                        'author': pdf_reader.metadata.get('/Author', '').strip(),
-                        'subject': pdf_reader.metadata.get('/Subject', '').strip(),
-                        'creator': pdf_reader.metadata.get('/Creator', '').strip(),
-                        'producer': pdf_reader.metadata.get('/Producer', '').strip(),
-                    })
-                
-                # Extract page count
-                metadata['pages'] = len(pdf_reader.pages)
-                
-                # Try to extract some text content for description
-                try:
-                    # Get first page text
-                    first_page = pdf_reader.pages[0]
-                    text = first_page.extract_text()
-                    
-                    # Clean up text and use as description (first 500 chars)
-                    if text:
-                        cleaned_text = ' '.join(text.split())  # Remove extra whitespace
-                        metadata['description'] = cleaned_text[:500] + ('...' if len(cleaned_text) > 500 else '')
-                except Exception as e:
-                    logger.warning(f"Could not extract text from PDF: {e}")
-                
-                # Try to extract language from metadata or content
-                if not metadata.get('language'):
-                    # Default to English if no language found
-                    metadata['language'] = 'en'
-                
-                # Try to extract ISBN from text content
-                try:
-                    import re
-                    # Look for ISBN patterns
-                    isbn_pattern = r'(?:ISBN[-\s]*:?[\s]*)?(97[89][\d-]{10,}|\d[\d-]{9}[\dXx])'
-                    matches = re.findall(isbn_pattern, text if 'text' in locals() else '')
-                    if matches:
-                        # Clean up ISBN (remove dashes and spaces)
-                        isbn = re.sub(r'[-\s]', '', matches[0])
-                        metadata['isbn'] = isbn
-                except Exception as e:
-                    logger.warning(f"Could not extract ISBN from PDF: {e}")
-                
-                # Try to extract publication date
-                if not metadata.get('publication_date') and pdf_reader.metadata:
-                    # Try to extract date from metadata
-                    creation_date = pdf_reader.metadata.get('/CreationDate', '')
-                    if creation_date:
-                        try:
-                            # PDF dates are in format D:YYYYMMDDHHmmSSOHH'mm'
-                            date_str = creation_date[2:10]  # Extract YYYYMMDD
-                            if len(date_str) == 8:
-                                year = date_str[:4]
-                                month = date_str[4:6]
-                                day = date_str[6:8]
-                                metadata['publication_date'] = f"{year}-{month}-{day}"
-                        except Exception as e:
-                            logger.warning(f"Could not parse PDF date: {e}")
-                
-                # Clean up metadata (remove empty values)
-                cleaned_metadata = {k: v for k, v in metadata.items() if v and v.strip()}
-                
-                logger.info(f"✅ PDF metadata extracted: {cleaned_metadata}")
-                return Response({'metadata': cleaned_metadata})
-                
-            except Exception as e:
-                logger.error(f"Error extracting PDF metadata: {e}")
-                return Response({'error': f'Failed to extract PDF metadata: {str(e)}'}, status=500)
-                
-        except Exception as e:
-            logger.error(f"Unexpected error in PDF extraction: {e}")
-            return Response({'error': 'Unexpected error occurred'}, status=500)
 
 
 class PDFStreamingView(APIView):
@@ -454,6 +355,19 @@ class BookProgressView(APIView):
             )
 
 
+class PublicBookViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Public ViewSet for viewing books without authentication
+    """
+    queryset = Book.objects.all()
+    permission_classes = [AllowAny]  # Explicitly allow any access
+    serializer_class = PublicBookSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['categories', 'author', 'language']
+    search_fields = ['title', 'subtitle', 'description', 'author__name']
+    ordering_fields = ['title', 'created_at', 'price', 'rating']
+
+
 @api_view(['GET'])
 def test_public_books(request):
     """Test endpoint for public books access"""
@@ -484,14 +398,251 @@ def test_public_books(request):
     return Response(data)
 
 
-class PublicBookViewSet(viewsets.ReadOnlyModelViewSet):
+class PDFMetadataExtractionView(APIView):
     """
-    Public ViewSet for viewing books without authentication
+    Extract metadata and chapters from uploaded PDF
     """
-    queryset = Book.objects.all()
-    permission_classes = [AllowAny]  # Explicitly allow any access
-    serializer_class = PublicBookSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['categories', 'author', 'language']
-    search_fields = ['title', 'subtitle', 'description', 'author__name']
-    ordering_fields = ['title', 'created_at', 'price', 'rating']
+    permission_classes = [IsStaffUser]
+
+    def post(self, request):
+        try:
+            pdf_file = request.FILES.get('pdf_file')
+
+            if not pdf_file:
+                return Response({'error': 'No PDF file provided'}, status=400)
+
+            if not pdf_file.name.lower().endswith('.pdf'):
+                return Response({'error': 'File must be a PDF'}, status=400)
+
+            # Reset pointer and read file
+            pdf_file.seek(0)
+            pdf_content = pdf_file.read()
+
+            metadata = {}
+
+            try:
+                import PyPDF2
+
+                pdf_reader = PyPDF2.PdfReader(io.BytesIO(pdf_content))
+
+                # -----------------------------
+                # BASIC METADATA
+                # -----------------------------
+                if pdf_reader.metadata:
+                    metadata.update({
+                        'title': (pdf_reader.metadata.get('/Title') or '').strip(),
+                        'author': (pdf_reader.metadata.get('/Author') or '').strip(),
+                        'subject': (pdf_reader.metadata.get('/Subject') or '').strip(),
+                        'creator': (pdf_reader.metadata.get('/Creator') or '').strip(),
+                        'producer': (pdf_reader.metadata.get('/Producer') or '').strip(),
+                    })
+
+                metadata['pages'] = len(pdf_reader.pages)
+
+                # -----------------------------
+                # EXTRACT CHAPTERS FROM OUTLINE
+                # -----------------------------
+                chapters = []
+                
+                try:
+                    logger.info(f"DEBUG: Checking PDF outline...")
+                    logger.info(f"DEBUG: pdf_reader.outline exists: {hasattr(pdf_reader, 'outline')}")
+                    
+                    if hasattr(pdf_reader, 'outline') and pdf_reader.outline:
+                        logger.info(f"DEBUG: PDF outline found with {len(pdf_reader.outline)} items")
+                        
+                        def extract_outline(outline, level=0):
+                            extracted = []
+                            
+                            for i, item in enumerate(outline):
+                                logger.info(f"DEBUG: Processing outline item {i} at level {level}: {type(item)}")
+                                
+                                if isinstance(item, list):
+                                    logger.info(f"DEBUG: Found nested list with {len(item)} items")
+                                    extracted.extend(extract_outline(item, level + 1))
+                                else:
+                                    try:
+                                        title = item.title if hasattr(item, 'title') else str(item)
+                                        page_num = pdf_reader.get_destination_page_number(item) + 1 if hasattr(item, 'dest') else None
+                                        
+                                        logger.info(f"DEBUG: Outline item - title: '{title}', page: {page_num}")
+                                        
+                                        # Check if this looks like a chapter
+                                        is_chapter = (
+                                            'chapter' in title.lower() or
+                                            'ch.' in title.lower() or
+                                            'section' in title.lower() or
+                                            level <= 2 or
+                                            (title.strip() and title[0].isdigit())
+                                        )
+                                        
+                                        logger.info(f"DEBUG: Is chapter: {is_chapter}")
+                                        
+                                        if is_chapter:
+                                            extracted.append({
+                                                'title': title,
+                                                'page_start': page_num,
+                                                'level': level
+                                            })
+                                            logger.info(f"DEBUG: Added chapter: '{title}' at page {page_num}")
+                                        
+                                    except Exception as e:
+                                        logger.warning(f"Outline parse error for item {i}: {e}")
+                                        logger.warning(f"DEBUG: Item details: {item}")
+                            
+                            return extracted
+                        
+                        chapters = extract_outline(pdf_reader.outline)
+                        logger.info(f"DEBUG: Extracted {len(chapters)} chapters from outline")
+                    else:
+                        logger.info("DEBUG: No PDF outline found")
+                        
+                except Exception as e:
+                    logger.error(f"DEBUG: Outline extraction failed with error: {e}")
+                    import traceback
+                    logger.error(f"DEBUG: Traceback: {traceback.format_exc()}")
+
+                # -----------------------------
+                # FALLBACK: TEXT-BASED DETECTION
+                # -----------------------------
+                if not chapters:
+                    logger.info("DEBUG: No chapters from outline, scanning text for chapters...")
+                    logger.info(f"DEBUG: Scanning first {min(50, len(pdf_reader.pages))} pages")
+
+                    for i, page in enumerate(pdf_reader.pages[:50]):
+                        try:
+                            text = page.extract_text() or ""
+                            lines = text.split('\n')
+                            
+                            logger.info(f"DEBUG: Page {i+1} - extracted {len(lines)} lines")
+
+                            for j, line in enumerate(lines):
+                                line = line.strip()
+                                
+                                if line:  # Only log non-empty lines
+                                    logger.debug(f"DEBUG: Page {i+1}, Line {j+1}: '{line[:50]}...'")
+
+                                if (
+                                    re.match(r'^\s*(chapter|ch\.|section)\s+[\divx]+', line, re.IGNORECASE) or
+                                    re.match(r'^\s*\d+[\.\)]\s+[A-Z]', line) or
+                                    re.match(r'^[A-Z][A-Z\s]{5,}$', line)
+                                ):
+                                    chapters.append({
+                                        'title': line,
+                                        'page_start': i + 1,
+                                        'level': 0
+                                    })
+                                    logger.info(f"DEBUG: Found chapter in text: '{line}' on page {i+1}")
+                                    break
+
+                        except Exception as e:
+                            logger.warning(f"DEBUG: Error scanning page {i+1}: {e}")
+                    
+                    logger.info(f"DEBUG: Text-based detection found {len(chapters)} chapters")
+                else:
+                    logger.info(f"DEBUG: Using outline chapters: {len(chapters)} found")
+
+                # -----------------------------
+                # CLEAN CHAPTERS + PAGE RANGES
+                # -----------------------------
+                if chapters:
+                    cleaned_chapters = []
+
+                    for i, chapter in enumerate(chapters):
+                        title = re.sub(r'^\d+[\.\)]?\s*', '', chapter['title']).strip()
+
+                        page_start = chapter.get('page_start', 1)
+                        next_start = chapters[i + 1]['page_start'] if i + 1 < len(chapters) else len(pdf_reader.pages)
+
+                        page_end = next_start - 1 if next_start > page_start else page_start
+
+                        cleaned_chapters.append({
+                            'chapter_number': i + 1,
+                            'title': title,
+                            'page_start': page_start,
+                            'page_end': page_end,
+                            'pages_count': page_end - page_start + 1,
+                            'level': chapter.get('level', 0)
+                        })
+
+                    metadata['chapters'] = cleaned_chapters
+                    logger.info(f"✅ Extracted {len(cleaned_chapters)} chapters")
+                else:
+                    metadata['chapters'] = []
+
+                # -----------------------------
+                # TEXT EXTRACTION (DESCRIPTION)
+                # -----------------------------
+                text = ""
+
+                try:
+                    first_page = pdf_reader.pages[0]
+                    text = first_page.extract_text() or ""
+
+                    if text:
+                        cleaned_text = ' '.join(text.split())
+                        metadata['description'] = cleaned_text[:500] + (
+                            '...' if len(cleaned_text) > 500 else ''
+                        )
+
+                except Exception as e:
+                    logger.warning(f"Text extraction failed: {e}")
+
+                # -----------------------------
+                # ISBN EXTRACTION
+                # -----------------------------
+                try:
+                    isbn_pattern = r'(?:ISBN[-\s]*:?[\s]*)?(97[89][\d-]{10,}|\d[\d-]{9}[\dXx])'
+                    matches = re.findall(isbn_pattern, text)
+
+                    if matches:
+                        isbn = re.sub(r'[-\s]', '', matches[0])
+                        metadata['isbn'] = isbn
+
+                except Exception as e:
+                    logger.warning(f"ISBN extraction failed: {e}")
+
+                # -----------------------------
+                # PUBLICATION DATE
+                # -----------------------------
+                if not metadata.get('publication_date') and pdf_reader.metadata:
+                    creation_date = pdf_reader.metadata.get('/CreationDate', '')
+
+                    if creation_date and len(creation_date) > 10:
+                        try:
+                            date_str = creation_date[2:10]
+                            metadata['publication_date'] = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
+                        except Exception as e:
+                            logger.warning(f"Date parsing failed: {e}")
+
+                # -----------------------------
+                # DEFAULT LANGUAGE
+                # -----------------------------
+                if not metadata.get('language'):
+                    metadata['language'] = 'en'
+
+                # -----------------------------
+                # CLEAN METADATA
+                # -----------------------------
+                cleaned_metadata = {
+                    k: v for k, v in metadata.items()
+                    if v and (not isinstance(v, str) or v.strip())
+                }
+
+                logger.info(f"✅ PDF metadata extracted successfully")
+
+                return Response({'metadata': cleaned_metadata})
+
+            except Exception as e:
+                logger.error(f"PDF processing failed: {e}")
+                return Response(
+                    {'error': f'Failed to process PDF: {str(e)}'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+        except Exception as e:
+            logger.error(f"Unexpected error: {e}")
+            return Response(
+                {'error': 'Unexpected server error'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
