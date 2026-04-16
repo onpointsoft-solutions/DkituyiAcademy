@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import SimpleRouter
 from .views import ReaderViewSet, unlock_page, get_unlocked_pages, create_note, get_notes, delete_note, create_bookmark, get_bookmarks, delete_bookmark, mark_page_completed, create_highlight, get_highlights, delete_highlight, get_categories, get_books_by_category, unlock_chapter, get_unlocked_chapters, get_chapter_info, get_book_chapters
+from .whatsapp_views import generate_quote_share_image, share_highlight_to_whatsapp, share_note_to_whatsapp, share_achievement_to_whatsapp
 from .annotation_views import ReadingFeaturesViewSet
 from .simple_views import SimpleReaderViewSet
 from .pdf_reader_views import PDFReaderViewSet
@@ -40,4 +41,10 @@ urlpatterns = [
     path('books/<int:book_id>/chapters/unlocked/', get_unlocked_chapters, name='get_unlocked_chapters'),
     path('books/<int:book_id>/chapters/<int:chapter_number>/', get_chapter_info, name='get_chapter_info'),
     path('books/<int:book_id>/chapters/', get_book_chapters, name='get_book_chapters'),
+    
+    # WhatsApp sharing endpoints
+    path('share/quote-image/', generate_quote_share_image, name='generate_quote_share_image'),
+    path('share/highlight/', share_highlight_to_whatsapp, name='share_highlight_to_whatsapp'),
+    path('share/note/', share_note_to_whatsapp, name='share_note_to_whatsapp'),
+    path('share/achievement/', share_achievement_to_whatsapp, name='share_achievement_to_whatsapp'),
 ]

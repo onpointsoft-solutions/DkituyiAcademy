@@ -10,6 +10,14 @@ from rest_framework.views import APIView
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Avg
 from django.http import HttpResponse, HttpResponseNotFound
+import fitz  # PyMuPDF
+import re
+import json
+from datetime import datetime
+from decimal import Decimal
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from django.conf import settings
 from django.utils.encoding import smart_str
@@ -421,224 +429,208 @@ class PDFMetadataExtractionView(APIView):
             metadata = {}
 
             try:
-                import PyPDF2
-
-                pdf_reader = PyPDF2.PdfReader(io.BytesIO(pdf_content))
-
+                # Use PyMuPDF for better chapter extraction
+                pdf_document = fitz.open(stream=pdf_content, filetype="pdf")
+                
                 # -----------------------------
                 # BASIC METADATA
                 # -----------------------------
-                if pdf_reader.metadata:
+                if pdf_document.metadata:
                     metadata.update({
-                        'title': (pdf_reader.metadata.get('/Title') or '').strip(),
-                        'author': (pdf_reader.metadata.get('/Author') or '').strip(),
-                        'subject': (pdf_reader.metadata.get('/Subject') or '').strip(),
-                        'creator': (pdf_reader.metadata.get('/Creator') or '').strip(),
-                        'producer': (pdf_reader.metadata.get('/Producer') or '').strip(),
+                        'title': (pdf_document.metadata.get('title') or '').strip(),
+                        'author': (pdf_document.metadata.get('author') or '').strip(),
+                        'subject': (pdf_document.metadata.get('subject') or '').strip(),
+                        'creator': (pdf_document.metadata.get('creator') or '').strip(),
+                        'producer': (pdf_document.metadata.get('producer') or '').strip(),
                     })
 
-                metadata['pages'] = len(pdf_reader.pages)
+                metadata['pages'] = pdf_document.page_count
 
                 # -----------------------------
                 # EXTRACT CHAPTERS FROM OUTLINE
                 # -----------------------------
                 chapters = []
-                
+
                 try:
-                    logger.info(f"DEBUG: Checking PDF outline...")
-                    logger.info(f"DEBUG: pdf_reader.outline exists: {hasattr(pdf_reader, 'outline')}")
+                    outline = pdf_document.get_outline()
+                    logger.info(f"DEBUG: PyMuPDF outline found with {len(outline)} items")
                     
-                    if hasattr(pdf_reader, 'outline') and pdf_reader.outline:
-                        logger.info(f"DEBUG: PDF outline found with {len(pdf_reader.outline)} items")
-                        
-                        def extract_outline(outline, level=0):
+                    if outline:
+                        def extract_outline(outline_items, level=0):
                             extracted = []
-                            
-                            for i, item in enumerate(outline):
-                                logger.info(f"DEBUG: Processing outline item {i} at level {level}: {type(item)}")
-                                
-                                if isinstance(item, list):
-                                    logger.info(f"DEBUG: Found nested list with {len(item)} items")
-                                    extracted.extend(extract_outline(item, level + 1))
-                                else:
-                                    try:
-                                        title = item.title if hasattr(item, 'title') else str(item)
-                                        page_num = pdf_reader.get_destination_page_number(item) + 1 if hasattr(item, 'dest') else None
-                                        
-                                        logger.info(f"DEBUG: Outline item - title: '{title}', page: {page_num}")
-                                        
-                                        # Check if this looks like a chapter
-                                        is_chapter = (
-                                            'chapter' in title.lower() or
-                                            'ch.' in title.lower() or
-                                            'section' in title.lower() or
-                                            level <= 2 or
-                                            (title.strip() and title[0].isdigit())
-                                        )
-                                        
-                                        logger.info(f"DEBUG: Is chapter: {is_chapter}")
-                                        
-                                        if is_chapter:
-                                            extracted.append({
-                                                'title': title,
-                                                'page_start': page_num,
-                                                'level': level
-                                            })
-                                            logger.info(f"DEBUG: Added chapter: '{title}' at page {page_num}")
-                                        
-                                    except Exception as e:
-                                        logger.warning(f"Outline parse error for item {i}: {e}")
-                                        logger.warning(f"DEBUG: Item details: {item}")
+                            for i, item in enumerate(outline_items):
+                                try:
+                                    # PyMuPDF outline item structure
+                                    title = item[1] if len(item) > 1 else str(item)
+                                    page_dest = item[2] if len(item) > 2 else None
+                                    
+                                    logger.info(f"DEBUG: Processing outline item {i} at level {level}: '{title}'")
+                                    
+                                    # Get page number from destination
+                                    page_num = None
+                                    if page_dest:
+                                        if isinstance(page_dest, fitz.Point):
+                                            # Simple page reference
+                                            page_num = page_dest.y + 1
+                                        elif isinstance(page_dest, tuple) and len(page_dest) > 0:
+                                            # Page reference in tuple
+                                            page_num = page_dest[0] + 1
+                                        elif hasattr(page_dest, 'page'):
+                                            page_num = page_dest.page + 1
+                                    
+                                    if page_num is None:
+                                        # Try to find the page by searching for the title
+                                            for page_idx in range(pdf_document.page_count):
+                                                page = pdf_document[page_idx]
+                                                if title.lower() in page.get_text().lower():
+                                                    page_num = page_idx + 1
+                                                    break
+                                    
+                                    logger.info(f"DEBUG: Outline item - title: '{title}', page: {page_num}")
+                                    
+                                    # Clean title
+                                    title = re.sub(r'\d+\.$', '', title).strip()
+                                    
+                                    # Check if this looks like a chapter
+                                    is_chapter = (
+                                        re.search(r'\b(chapter|ch|section|part)\b', title, re.IGNORECASE) or
+                                        re.search(r'^\d+[\.\)]', title) or
+                                        re.search(r'^[A-Z][A-Z\s]{5,}$', title) or
+                                        len(title.split()) <= 5
+                                    )
+                                    
+                                    logger.info(f"DEBUG: Is chapter: {is_chapter}")
+                                    
+                                    if is_chapter and page_num:
+                                        extracted.append({
+                                            'title': title,
+                                            'page_start': page_num,
+                                            'level': level
+                                        })
+                                        logger.info(f"DEBUG: Added chapter: '{title}' at page {page_num}")
+                                    elif not is_chapter:
+                                        logger.debug(f"DEBUG: Skipped non-chapter item: '{title}'")
+                                    
+                                except Exception as e:
+                                    logger.error(f"DEBUG: Error processing outline item {i}: {e}")
+                                    import traceback
+                                    logger.error(f"DEBUG: Traceback: {traceback.format_exc()}")
+                                    continue
                             
                             return extracted
-                        
-                        chapters = extract_outline(pdf_reader.outline)
+
+                        chapters = extract_outline(outline)
                         logger.info(f"DEBUG: Extracted {len(chapters)} chapters from outline")
+                        
                     else:
-                        logger.info("DEBUG: No PDF outline found")
+                        logger.info(f"DEBUG: No outline found in PDF")
                         
                 except Exception as e:
-                    logger.error(f"DEBUG: Outline extraction failed with error: {e}")
+                    logger.error(f"DEBUG: Error extracting outline: {e}")
                     import traceback
                     logger.error(f"DEBUG: Traceback: {traceback.format_exc()}")
 
                 # -----------------------------
-                # FALLBACK: TEXT-BASED DETECTION
+                # FALLBACK: TEXT-BASED CHAPTER DETECTION
                 # -----------------------------
                 if not chapters:
-                    logger.info("DEBUG: No chapters from outline, scanning text for chapters...")
-                    logger.info(f"DEBUG: Scanning first {min(50, len(pdf_reader.pages))} pages")
-
-                    for i, page in enumerate(pdf_reader.pages[:50]):
-                        try:
-                            text = page.extract_text() or ""
-                            lines = text.split('\n')
-                            
-                            logger.info(f"DEBUG: Page {i+1} - extracted {len(lines)} lines")
-
-                            for j, line in enumerate(lines):
-                                line = line.strip()
-                                
-                                if line:  # Only log non-empty lines
-                                    logger.debug(f"DEBUG: Page {i+1}, Line {j+1}: '{line[:50]}...'")
-
-                                if (
-                                    re.match(r'^\s*(chapter|ch\.|section)\s+[\divx]+', line, re.IGNORECASE) or
-                                    re.match(r'^\s*\d+[\.\)]\s+[A-Z]', line) or
-                                    re.match(r'^[A-Z][A-Z\s]{5,}$', line)
-                                ):
-                                    chapters.append({
-                                        'title': line,
-                                        'page_start': i + 1,
-                                        'level': 0
-                                    })
-                                    logger.info(f"DEBUG: Found chapter in text: '{line}' on page {i+1}")
-                                    break
-
-                        except Exception as e:
-                            logger.warning(f"DEBUG: Error scanning page {i+1}: {e}")
+                    logger.info(f"DEBUG: Using fallback text-based chapter detection")
                     
-                    logger.info(f"DEBUG: Text-based detection found {len(chapters)} chapters")
-                else:
-                    logger.info(f"DEBUG: Using outline chapters: {len(chapters)} found")
+                    # Chapter patterns
+                    chapter_patterns = [
+                        r'^\s*(?:Chapter|CHAPTER)\s+\d+.*',
+                        r'^\s*Chapter\s+\d+.*',
+                        r'^\s*\d+\.\s+.*',
+                        r'^\s*\d+\)\s+.*',
+                        r'^\s*[A-Z][A-Z\s]{5,}\s*$',
+                        r'^\s*Section\s+\d+.*',
+                        r'^\s*Part\s+\d+.*'
+                    ]
+                    
+                    # Scan first 50 pages for chapter patterns
+                    for i in range(min(50, pdf_document.page_count)):
+                        page = pdf_document[i]
+                        text = page.get_text()
+                        lines = text.split('\n')
+                        
+                        logger.info(f"DEBUG: Scanning page {i+1} - extracted {len(lines)} lines")
+                        
+                        for j, line in enumerate(lines):
+                            line = line.strip()
+                            if len(line) > 0 and len(line) < 100:
+                                for pattern in chapter_patterns:
+                                    if re.match(pattern, line, re.IGNORECASE):
+                                        logger.info(f"DEBUG: Found chapter in text: '{line}' on page {i+1}")
+                                        chapters.append({
+                                            'title': line,
+                                            'page_start': i + 1,
+                                            'level': 0
+                                        })
+                                        break
+                    
+                    logger.info(f"DEBUG: Found {len(chapters)} chapters using text detection")
 
                 # -----------------------------
-                # CLEAN CHAPTERS + PAGE RANGES
+                # PROCESS CHAPTERS AND CALCULATE PAGE RANGES
                 # -----------------------------
                 if chapters:
-                    cleaned_chapters = []
-
+                    logger.info(f"DEBUG: Processing {len(chapters)} chapters")
+                    
+                    processed_chapters = []
                     for i, chapter in enumerate(chapters):
-                        title = re.sub(r'^\d+[\.\)]?\s*', '', chapter['title']).strip()
-
-                        page_start = chapter.get('page_start', 1)
-                        next_start = chapters[i + 1]['page_start'] if i + 1 < len(chapters) else len(pdf_reader.pages)
-
-                        page_end = next_start - 1 if next_start > page_start else page_start
-
-                        cleaned_chapters.append({
+                        # Calculate page range
+                        if i < len(chapters) - 1:
+                            page_end = chapters[i + 1]['page_start'] - 1
+                        else:
+                            page_end = pdf_document.page_count
+                        
+                        # Ensure page range is valid
+                        page_start = max(1, chapter['page_start'])
+                        page_end = min(pdf_document.page_count, page_end)
+                        
+                        pages_count = page_end - page_start + 1
+                        
+                        # Clean title
+                        title = chapter['title']
+                        title = re.sub(r'^\d+[\.\)]\s*', '', title)  # Remove leading numbers
+                        title = re.sub(r'^(?:Chapter|CHAPTER)\s+\d+\s*[:\.-]?\s*', '', title)  # Remove "Chapter X" prefix
+                        title = title.strip()
+                        
+                        if not title:
+                            title = f"Chapter {i + 1}"
+                        
+                        processed_chapter = {
                             'chapter_number': i + 1,
                             'title': title,
                             'page_start': page_start,
                             'page_end': page_end,
-                            'pages_count': page_end - page_start + 1,
+                            'pages_count': pages_count,
                             'level': chapter.get('level', 0)
-                        })
-
-                    metadata['chapters'] = cleaned_chapters
-                    logger.info(f"✅ Extracted {len(cleaned_chapters)} chapters")
+                        }
+                        
+                        processed_chapters.append(processed_chapter)
+                        logger.info(f"DEBUG: Processed chapter {i+1}: '{title}' (pages {page_start}-{page_end}, {pages_count} pages)")
+                    
+                    metadata['chapters'] = processed_chapters
+                    logger.info(f"DEBUG: Final chapters metadata: {processed_chapters}")
                 else:
+                    logger.info(f"DEBUG: No chapters found")
                     metadata['chapters'] = []
 
-                # -----------------------------
-                # TEXT EXTRACTION (DESCRIPTION)
-                # -----------------------------
-                text = ""
-
-                try:
-                    first_page = pdf_reader.pages[0]
-                    text = first_page.extract_text() or ""
-
-                    if text:
-                        cleaned_text = ' '.join(text.split())
-                        metadata['description'] = cleaned_text[:500] + (
-                            '...' if len(cleaned_text) > 500 else ''
-                        )
-
-                except Exception as e:
-                    logger.warning(f"Text extraction failed: {e}")
-
-                # -----------------------------
-                # ISBN EXTRACTION
-                # -----------------------------
-                try:
-                    isbn_pattern = r'(?:ISBN[-\s]*:?[\s]*)?(97[89][\d-]{10,}|\d[\d-]{9}[\dXx])'
-                    matches = re.findall(isbn_pattern, text)
-
-                    if matches:
-                        isbn = re.sub(r'[-\s]', '', matches[0])
-                        metadata['isbn'] = isbn
-
-                except Exception as e:
-                    logger.warning(f"ISBN extraction failed: {e}")
-
-                # -----------------------------
-                # PUBLICATION DATE
-                # -----------------------------
-                if not metadata.get('publication_date') and pdf_reader.metadata:
-                    creation_date = pdf_reader.metadata.get('/CreationDate', '')
-
-                    if creation_date and len(creation_date) > 10:
-                        try:
-                            date_str = creation_date[2:10]
-                            metadata['publication_date'] = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
-                        except Exception as e:
-                            logger.warning(f"Date parsing failed: {e}")
-
-                # -----------------------------
-                # DEFAULT LANGUAGE
-                # -----------------------------
-                if not metadata.get('language'):
-                    metadata['language'] = 'en'
-
-                # -----------------------------
-                # CLEAN METADATA
-                # -----------------------------
-                cleaned_metadata = {
-                    k: v for k, v in metadata.items()
-                    if v and (not isinstance(v, str) or v.strip())
-                }
-
-                logger.info(f"✅ PDF metadata extracted successfully")
-
-                return Response({'metadata': cleaned_metadata})
+                pdf_document.close()
 
             except Exception as e:
-                logger.error(f"PDF processing failed: {e}")
-                return Response(
-                    {'error': f'Failed to process PDF: {str(e)}'},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
+                logger.error(f"DEBUG: Error processing PDF: {e}")
+                import traceback
+                logger.error(f"DEBUG: Traceback: {traceback.format_exc()}")
+                return Response({'error': f'Failed to process PDF: {str(e)}'}, status=500)
+
+            # Return metadata with chapters
+            return Response({
+                'message': 'PDF metadata extracted successfully',
+                'metadata': metadata,
+                'chapters_found': len(metadata.get('chapters', []))
+            })
 
         except Exception as e:
             logger.error(f"Unexpected error: {e}")

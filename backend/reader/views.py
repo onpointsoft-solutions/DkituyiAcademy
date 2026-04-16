@@ -1097,7 +1097,7 @@ def get_books_by_category(request, category_id=None):
 @permission_classes([])
 @csrf_exempt
 def unlock_chapter(request):
-    """Unlock a chapter for a book (30 KES per chapter)"""
+    """Unlock a chapter for a book (dynamic pricing per chapter)"""
     user_id = get_user_from_jwt(request)
     if not user_id:
         return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -1128,6 +1128,9 @@ def unlock_chapter(request):
     except BookChapter.DoesNotExist:
         return Response({'error': 'Chapter not found'}, status=status.HTTP_404_NOT_FOUND)
     
+    # Get chapter price
+    chapter_price = chapter.actual_price
+    
     # Check if chapter is free
     if chapter.is_free:
         unlocked_chapter = UnlockedChapter.objects.create(
@@ -1142,38 +1145,43 @@ def unlock_chapter(request):
             user_id=user_id,
             book=book,
             unlock_type='chapter',
-            details={'chapter_number': chapter_number},
+            details={'chapter_number': chapter_number, 'chapter_title': chapter.title},
             amount_paid=0.00
         )
         
         return Response({
             'message': 'Free chapter unlocked successfully',
             'chapter_number': chapter_number,
-            'amount_paid': 0.00
+            'chapter_title': chapter.title,
+            'amount_paid': 0.00,
+            'is_free': True
         })
     
-    # Process payment for chapter (30 KES)
-    CHAPTER_PRICE = 30.00
-    
+    # Process payment for chapter (dynamic pricing)
     try:
         # Get user's wallet
         wallet = Wallet.objects.get(user_id=user_id)
         
-        if wallet.balance < CHAPTER_PRICE:
-            return Response({'error': 'Insufficient balance'}, status=status.HTTP_400_BAD_REQUEST)
+        if wallet.balance < chapter_price:
+            return Response({
+                'error': 'Insufficient balance', 
+                'required_balance': float(chapter_price),
+                'current_balance': float(wallet.balance),
+                'shortfall': float(chapter_price - wallet.balance)
+            }, status=status.HTTP_400_BAD_REQUEST)
         
         # Create transaction and unlock chapter
         with transaction.atomic():
             # Deduct from wallet
-            wallet.balance -= CHAPTER_PRICE
+            wallet.balance -= chapter_price
             wallet.save()
             
             # Create transaction record
             Transaction.objects.create(
                 user_id=user_id,
-                amount=CHAPTER_PRICE,
+                amount=chapter_price,
                 transaction_type='CHAPTER_UNLOCK',
-                description=f'Unlocked Chapter {chapter_number} of {book.title}',
+                description=f'Unlocked Chapter {chapter_number}: {chapter.title} of {book.title}',
                 status='completed'
             )
             
@@ -1182,7 +1190,7 @@ def unlock_chapter(request):
                 user_id=user_id,
                 book=book,
                 chapter_number=chapter_number,
-                amount_paid=CHAPTER_PRICE
+                amount_paid=chapter_price
             )
             
             # Send email notification
@@ -1190,15 +1198,22 @@ def unlock_chapter(request):
                 user_id=user_id,
                 book=book,
                 unlock_type='chapter',
-                details={'chapter_number': chapter_number},
-                amount_paid=CHAPTER_PRICE
+                details={
+                    'chapter_number': chapter_number, 
+                    'chapter_title': chapter.title,
+                    'pages_count': chapter.pages_count
+                },
+                amount_paid=chapter_price
             )
         
         return Response({
             'message': 'Chapter unlocked successfully',
             'chapter_number': chapter_number,
-            'amount_paid': CHAPTER_PRICE,
-            'remaining_balance': float(wallet.balance)
+            'chapter_title': chapter.title,
+            'amount_paid': float(chapter_price),
+            'remaining_balance': float(wallet.balance),
+            'pages_count': chapter.pages_count,
+            'is_free': False
         })
         
     except Wallet.DoesNotExist:
@@ -1293,15 +1308,14 @@ def get_book_chapters(request, book_id):
         chapters_data.append({
             'chapter_number': chapter.chapter_number,
             'title': chapter.title,
-            'pages_count': chapter.pages_count,
+            'pages_count': chapter.pages_count or len(page_numbers),
             'page_numbers': page_numbers,
-            'page_range': {
-                'start': min(page_numbers) if page_numbers else None,
-                'end': max(page_numbers) if page_numbers else None
-            },
+            'page_range': page_range,
+            'price': float(chapter.price),
+            'actual_price': float(chapter.actual_price),
+            'display_price': chapter.display_price,
             'is_free': chapter.is_free,
-            'is_unlocked': is_unlocked,
-            'price': 0.00 if chapter.is_free else 30.00
+            'is_unlocked': is_unlocked
         })
     
     return Response({
