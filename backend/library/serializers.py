@@ -17,8 +17,13 @@ class UserLibrarySerializer(serializers.ModelSerializer):
     
     def get_user_reading_progress(self, obj):
         """Get reading progress for this book"""
+        # Use cached progress data if available from context
+        progress_cache = self.context.get('progress_cache', {})
+        cache_key = f"{obj.user_id}_{obj.book_id}"
+        if cache_key in progress_cache:
+            return progress_cache[cache_key]['progress_percentage']
+        
         try:
-            # Direct database query to avoid any field conflicts
             progress = ReadingProgress.objects.get(
                 user_id=obj.user_id, 
                 book=obj.book
@@ -32,8 +37,13 @@ class UserLibrarySerializer(serializers.ModelSerializer):
     
     def get_last_read(self, obj):
         """Get last read date for this book"""
+        # Use cached progress data if available from context
+        progress_cache = self.context.get('progress_cache', {})
+        cache_key = f"{obj.user_id}_{obj.book_id}"
+        if cache_key in progress_cache:
+            return progress_cache[cache_key]['last_read']
+        
         try:
-            # Direct database query to avoid any field conflicts
             progress = ReadingProgress.objects.get(
                 user_id=obj.user_id, 
                 book=obj.book

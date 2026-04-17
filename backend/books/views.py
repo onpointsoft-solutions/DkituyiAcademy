@@ -377,33 +377,65 @@ class PublicBookViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 @api_view(['GET'])
+def ping(request):
+    """Simple ping endpoint to test server responsiveness"""
+    return Response({'status': 'ok', 'timestamp': str(timezone.now())})
+
+
+@api_view(['GET'])
 def test_public_books(request):
-    """Test endpoint for public books access"""
-    print(f"just DEBUG: test_public_books called for {request.path}")
-    print(f"just DEBUG: Request method: {request.method}")
-    print(f"just DEBUG: Request user: {getattr(request, 'user', 'No user')}")
-    print(f"just DEBUG: Request user_payload: {getattr(request, 'user_payload', 'No user_payload')}")
-    
-    from .models import Book
-    books = Book.objects.all()  # Remove limit to get all books
-    data = []
-    for book in books:
-        data.append({
-            'id': book.id,
-            'title': book.title,
-            'author_name': book.author.name if book.author else 'Unknown',
-            'price': float(book.price),
-            'is_free': book.is_free,
-            'pages': book.pages,
-            'cover_url': book.cover_display_url,  # Use the property that handles both cover_image and cover_url
-            'cover_display_url': book.cover_display_url,  # Add both fields for compatibility
-            'description': book.description if book.description else '',
-            'isbn': book.isbn if book.isbn else '',
-            'publication_date': book.publication_date.isoformat() if book.publication_date else None,
-        })
-    
-    print(f"just DEBUG: Returning {len(data)} books with cover URLs")
-    return Response(data)
+    """Test endpoint for public books access - optimized for speed"""
+    try:
+        from .models import Book
+        from django.conf import settings
+        from django.utils import timezone
+        
+        # First, just count books without loading them
+        book_count = Book.objects.count()
+        print(f"DEBUG: Found {book_count} books in database")
+        
+        # If no books, return empty quickly
+        if book_count == 0:
+            return Response([])
+        
+        # Only select fields we need, with select_related for author
+        books = Book.objects.select_related('author').only(
+            'id', 'title', 'price', 'is_free', 'pages', 'cover_image', 
+            'cover_url', 'author__name'
+        ).order_by('-created_at')[:20]  # Reduced to 20 books
+        
+        # Pre-build media URL once
+        media_url = settings.MEDIA_URL.rstrip('/')
+        
+        data = []
+        for book in books:
+            # Efficient cover URL handling - fix duplicate paths
+            cover_url = book.cover_display_url
+            if cover_url:
+                # Remove duplicate backend/media if present
+                if '/backend/media/backend/media/' in cover_url:
+                    cover_url = cover_url.replace('/backend/media/backend/media/', '/backend/media/')
+                elif not cover_url.startswith('http') and not cover_url.startswith('/backend/media/'):
+                    cover_url = f"{media_url}/{cover_url.lstrip('/')}"
+            
+            data.append({
+                'id': book.id,
+                'title': book.title,
+                'author_name': book.author.name if book.author else 'Unknown',
+                'price': float(book.price),
+                'is_free': book.is_free,
+                'pages': book.pages,
+                'cover_url': cover_url,
+            })
+        
+        print(f"DEBUG: Returning {len(data)} books")
+        return Response(data)
+        
+    except Exception as e:
+        print(f"ERROR in test_public_books: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return Response({'error': 'Failed to fetch books'}, status=500)
 
 
 class PDFMetadataExtractionView(APIView):

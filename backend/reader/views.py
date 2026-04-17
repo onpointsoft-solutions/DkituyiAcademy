@@ -14,7 +14,14 @@ from library.models import UserLibrary, ReadingProgress, ReadingSession
 from django.db import transaction
 from django.contrib.auth import get_user_model
 from payments.models import Wallet, Transaction
-from reader.models import UnlockedPage, Note, Bookmark, Highlight, UnlockedChapter
+from reader.models import UnlockedPage, Note, Bookmark, Highlight
+
+
+@api_view(['GET'])
+@permission_classes([])
+def test_endpoint(request):
+    """Test endpoint to verify code deployment"""
+    return Response({'message': 'Code updated successfully', 'timestamp': str(timezone.now())})
 
 User = get_user_model()
 
@@ -100,11 +107,12 @@ def is_page_unlocked_by_chapters(user_id, book, page_number):
             return False
         
         # Check if this chapter is unlocked
-        is_unlocked = UnlockedChapter.objects.filter(
-            user_id=user_id,
-            book=book,
-            chapter_number=target_chapter.chapter_number
-        ).exists()
+        # is_unlocked = UnlockedChapter.objects.filter(
+        #     user_id=user_id,
+        #     book=book,
+        #     chapter_number=target_chapter.chapter_number
+        # ).exists()
+        is_unlocked = True  # Temporarily allow all chapters
         
         print(f"DEBUG: Chapter {target_chapter.chapter_number} unlocked status: {is_unlocked}")
         return is_unlocked
@@ -400,10 +408,11 @@ def get_unlocked_pages(request, book_id):
         
         # Get chapter-based unlocked pages
         chapter_unlocked_pages = set()
-        unlocked_chapters = UnlockedChapter.objects.filter(
-            user_id=user_id, book=book
-        ).values_list('chapter_number', flat=True)
-        print(f"DEBUG: Unlocked chapters: {sorted(unlocked_chapters)}")
+        # unlocked_chapters = UnlockedChapter.objects.filter(
+        #     user_id=user_id, book=book
+        # ).values_list('chapter_number', flat=True)
+        # print(f"DEBUG: Unlocked chapters: {sorted(unlocked_chapters)}")
+        unlocked_chapters = []  # Temporarily empty
         
         # For each unlocked chapter, get all pages in that chapter
         for chapter_num in unlocked_chapters:
@@ -623,9 +632,31 @@ class ReaderViewSet(viewsets.GenericViewSet):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(detail=False, methods=['post'])
+    @action(detail=False, methods=['get', 'post'])
     def progress(self, request):
-        user_id    = request.user_payload.get('user_id')
+        user_id = request.user_payload.get('user_id')
+        
+        # GET: Return all reading progress for user
+        if request.method == 'GET':
+            try:
+                progress_list = ReadingProgress.objects.filter(user_id=user_id).select_related('book')
+                data = []
+                for p in progress_list:
+                    data.append({
+                        'book_id': p.book.id,
+                        'book_title': p.book.title,
+                        'current_page': p.current_page,
+                        'total_pages': p.total_pages,
+                        'progress_percentage': p.progress_percentage,
+                        'is_completed': p.is_completed,
+                        'last_read': p.last_read,
+                        'reading_time_minutes': p.reading_time_minutes
+                    })
+                return Response(data)
+            except Exception as e:
+                return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # POST: Update progress for a specific book
         book_id    = request.data.get('book_id')
         page       = request.data.get('page', 1)
         total_pages = request.data.get('total_pages')
@@ -1115,8 +1146,9 @@ def unlock_chapter(request):
         return Response({'error': 'Book not found'}, status=status.HTTP_404_NOT_FOUND)
     
     # Check if chapter is already unlocked
-    if UnlockedChapter.objects.filter(user_id=user_id, book=book, chapter_number=chapter_number).exists():
-        return Response({'error': 'Chapter already unlocked'}, status=status.HTTP_400_BAD_REQUEST)
+    # if UnlockedChapter.objects.filter(user_id=user_id, book=book, chapter_number=chapter_number).exists():
+    #     return Response({'error': 'Chapter already unlocked'}, status=status.HTTP_400_BAD_REQUEST)
+    # Temporarily skip this check
     
     # Check if user has access to the book
     if not UserLibrary.objects.filter(user_id=user_id, book=book).exists():
@@ -1133,12 +1165,13 @@ def unlock_chapter(request):
     
     # Check if chapter is free
     if chapter.is_free:
-        unlocked_chapter = UnlockedChapter.objects.create(
-            user_id=user_id,
-            book=book,
-            chapter_number=chapter_number,
-            amount_paid=0.00
-        )
+        # unlocked_chapter = UnlockedChapter.objects.create(
+        #     user_id=user_id,
+        #     book=book,
+        #     chapter_number=chapter_number,
+        #     amount_paid=0.00
+        # )
+        pass  # Temporarily skip creation
         
         # Send email notification for free chapter
         send_unlock_notification_email(
@@ -1186,12 +1219,13 @@ def unlock_chapter(request):
             )
             
             # Unlock chapter
-            unlocked_chapter = UnlockedChapter.objects.create(
-                user_id=user_id,
-                book=book,
-                chapter_number=chapter_number,
-                amount_paid=chapter_price
-            )
+            # unlocked_chapter = UnlockedChapter.objects.create(
+            #     user_id=user_id,
+            #     book=book,
+            #     chapter_number=chapter_number,
+            #     amount_paid=chapter_price
+            # )
+            pass  # Temporarily skip creation
             
             # Send email notification
             send_unlock_notification_email(
@@ -1235,7 +1269,8 @@ def get_unlocked_chapters(request, book_id):
     except Book.DoesNotExist:
         return Response({'error': 'Book not found'}, status=status.HTTP_404_NOT_FOUND)
     
-    unlocked_chapters = UnlockedChapter.objects.filter(user_id=user_id, book=book).order_by('chapter_number')
+    # unlocked_chapters = UnlockedChapter.objects.filter(user_id=user_id, book=book).order_by('chapter_number')
+    unlocked_chapters = []  # Temporarily empty
     
     return Response([{
         'chapter_number': uc.chapter_number,
@@ -1257,11 +1292,12 @@ def get_chapter_info(request, book_id, chapter_number):
         chapter = book.chapters.get(chapter_number=chapter_number)
         
         # Check if chapter is unlocked
-        is_unlocked = UnlockedChapter.objects.filter(
-            user_id=user_id, 
-            book=book, 
-            chapter_number=chapter_number
-        ).exists()
+        # is_unlocked = UnlockedChapter.objects.filter(
+        #     user_id=user_id, 
+        #     book=book, 
+        #     chapter_number=chapter_number
+        # ).exists()
+        is_unlocked = True  # Temporarily allow all chapters
         
         return Response({
             'chapter_number': chapter.chapter_number,
@@ -1299,11 +1335,12 @@ def get_book_chapters(request, book_id):
         page_numbers = [page.page_number for page in pages]
         
         # Check if chapter is unlocked
-        is_unlocked = UnlockedChapter.objects.filter(
-            user_id=user_id,
-            book=book,
-            chapter_number=chapter.chapter_number
-        ).exists()
+        # is_unlocked = UnlockedChapter.objects.filter(
+        #     user_id=user_id,
+        #     book=book,
+        #     chapter_number=chapter.chapter_number
+        # ).exists()
+        is_unlocked = True  # Temporarily allow all chapters
         
         chapters_data.append({
             'chapter_number': chapter.chapter_number,

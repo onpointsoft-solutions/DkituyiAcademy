@@ -132,9 +132,9 @@ function BookCard({ book, onPreview, onRead }) {
   const [imageError, setImageError] = useState(false);
   
   // Try multiple possible cover image fields
-  const coverUrl = book.cover_display_url || book.cover_url || book.cover || book.image || book.thumbnail;
-  const fallbackSrc = `https://placehold.co/400x200/e8e2d9/1a1a1a?text=${encodeURIComponent((book.title || 'Book').substring(0, 12))}`;
-  const imageSrc = imageError ? fallbackSrc : coverUrl || fallbackSrc;
+  const coverUrl = book.cover_url || book.cover_display_url || book.cover || book.image || book.thumbnail;
+  const fallbackSrc = `https://placehold.co/400x600/e8e2d9/1a1a1a?text=${encodeURIComponent((book.title || 'Book').substring(0, 15))}`;
+  const imageSrc = imageError ? fallbackSrc : (coverUrl || fallbackSrc);
 
   const handleImageError = () => {
     setImageError(true);
@@ -380,11 +380,27 @@ export default function Home() {
     try {
       setLoading(true);
       setError(null);
-      // Use test endpoint as requested - now returns complete data with all books and cover images
-      const response = await api.get('/api/books/test/');
-      const booksArray = Array.isArray(response.data) ? response.data : (response.data?.results ?? []);
       
-      console.log('Books fetched:', booksArray.length, booksArray.map(b => ({ 
+      // First test if server is responding
+      console.log('Testing server ping...');
+      const pingResponse = await api.get('/api/books/ping/', { timeout: 3000 });
+      console.log('Server ping successful:', pingResponse.data);
+      
+      // Now fetch books with optimized endpoint
+      console.log('Fetching books...');
+      const response = await api.get('/api/books/test/', { timeout: 5000 });
+      
+      // Handle different response formats
+      let booksArray = [];
+      if (Array.isArray(response.data)) {
+        booksArray = response.data;
+      } else if (response.data?.error) {
+        throw new Error(response.data.error);
+      } else if (response.data?.results) {
+        booksArray = response.data.results;
+      }
+      
+      console.log(`Books fetched: ${booksArray.length}`, booksArray.slice(0, 3).map(b => ({ 
         id: b.id, 
         title: b.title, 
         cover: b.cover_url || b.cover_display_url,
@@ -393,10 +409,15 @@ export default function Home() {
         price: b.price,
         is_free: b.is_free
       })));
+      
       setBooks(booksArray);
     } catch (err) {
       console.error('Home: failed to fetch books', err);
-      setError('Failed to load books. Please try again later.');
+      if (err.code === 'ECONNABORTED') {
+        setError('Request timed out. Server may be slow to respond. Please try again.');
+      } else {
+        setError('Failed to load books. Please try again later.');
+      }
       setBooks([]);
     } finally {
       setLoading(false);

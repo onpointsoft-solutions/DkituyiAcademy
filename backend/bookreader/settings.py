@@ -1,11 +1,6 @@
 import os
 from pathlib import Path
 from decouple import config
-import pymysql
-
-# Install PyMySQL as the MySQL driver and fix version for Django
-pymysql.install_as_MySQLdb()
-pymysql.version_info = (2, 2, 1, 'final', 0)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -23,10 +18,10 @@ if env_hosts:
     ALLOWED_HOSTS = [s.strip() for s in env_hosts.split(',')]
     # Force add all hosts if environment doesn't include *
     if '*' not in env_hosts:
-        ALLOWED_HOSTS.append('*')
+        ALLOWED_HOSTS.append('ebooks.dkituyiacademy.org')
 else:
     # Allow all hosts for now
-    ALLOWED_HOSTS = ['*']
+    ALLOWED_HOSTS = ['ebooks.dkituyiacademy.org']
 print(f"DEBUG: ALLOWED_HOSTS = {ALLOWED_HOSTS}")
 
 # Application definition
@@ -51,7 +46,6 @@ LOCAL_APPS = [
     'reader',
     'admin_api',
     'user_api',
-    'payment',
     'payments',  # Updated to payments app
 ]
 
@@ -62,12 +56,12 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'authentication.middleware_csrf.DisableCSRFMiddleware',  # Disable CSRF for API endpoints
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'authentication.middleware.JWTAuthMiddleware',  # Move after Django's auth middleware
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'authentication.middleware_csrf.DisableCSRFMiddleware',  # Custom middleware to disable CSRF for API endpoints
 ]
 
 # CSRF Settings for production
@@ -99,11 +93,14 @@ WSGI_APPLICATION = 'bookreader.wsgi.application'
 # Database
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'viyykxmm_ebooksdb',
+        'USER': 'viyykxmm_ebooksadmin',
+        'PASSWORD': '@Admin@2026',
+        'HOST': 'localhost',  # or your server IP
+        'PORT': '3306',
     }
 }
-
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -156,11 +153,7 @@ REST_FRAMEWORK = {
 }
 
 # CORS settings
-CORS_ALLOWED_ORIGINS = config(
-    'CORS_ALLOWED_ORIGINS',
-    default='https://ebooks.dkituyiacademy.org,https://dkituyiacademy.org,http://localhost:3000,http://127.0.0.1:3000',
-    cast=lambda v: [s.strip() for s in v.split(',')]
-)
+CORS_ALLOWED_ORIGINS =["ebooks.dkituyiacademy.org"]
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = True
@@ -185,11 +178,7 @@ CORS_ALLOW_HEADERS = [
 ]
 
 # CSRF Settings for admin API
-CSRF_TRUSTED_ORIGINS = config(
-    'CSRF_TRUSTED_ORIGINS',
-    default='https://ebooks.dkituyiacademy.org,https://dkituyiacademy.org,https://reader.dkituyiacademy.org,http://localhost:3000,http://127.0.0.1:3000',
-    cast=lambda v: [s.strip() for s in v.split(',')]
-)
+CSRF_TRUSTED_ORIGINS =["ebooks.dkituyiacademy.org"]
 
 # JWT Settings
 JWT_SECRET_KEY = config('JWT_SECRET_KEY', default='your-jwt-secret-key-change-in-production')
@@ -217,48 +206,26 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024  # 50MB
 PAYMENT_CURRENCY = 'USD'
 DEFAULT_BOOK_PRICE = 9.99
 
-# Multi-Currency Support for African Countries
-CURRENCY_CONVERSION_RATES = {
-    'USD': 1.0,  # Base currency
-    'KES': 130.0,  # Kenyan Shilling
-    'UGX': 3700.0,  # Ugandan Shilling
-    'TZS': 2500.0,  # Tanzanian Shilling
-    'NGN': 750.0,   # Nigerian Naira
-    'ZAR': 18.5,    # South African Rand
-}
-
-# Supported Countries and Currencies
-SUPPORTED_COUNTRIES = {
-    'KE': {'currency': 'KES', 'name': 'Kenya'},
-    'UG': {'currency': 'UGX', 'name': 'Uganda'},
-    'TZ': {'currency': 'TZS', 'name': 'Tanzania'},
-    'NG': {'currency': 'NGN', 'name': 'Nigeria'},
-    'ZA': {'currency': 'ZAR', 'name': 'South Africa'},
-}
-
-# Paystack Supported Countries
-PAYSTACK_SUPPORTED_COUNTRIES = ['KE', 'UG', 'GH', 'ZA', 'NG']
-
 # Email Settings for dkituyi academy
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_HOST = config('EMAIL_HOST', default='mail.dkituyiacademy.org')
 EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
 EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
-EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
-EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='dkituyi academy <noreply@dkituyiacademy.com>')
-ADMIN_EMAIL = config('ADMIN_EMAIL', default='admin@dkituyiacademy.com')
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='ebooks@dkituyiacademy.org')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='@Admin@2026')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='dkituyi academy <noreply@dkituyiacademy.org>')
+ADMIN_EMAIL = config('ADMIN_EMAIL', default='admin@dkituyiacademy.org')
 
 # Email Settings for Development
 if DEBUG:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-    DEFAULT_FROM_EMAIL = 'dkituyi academy <test@dkituyiacademy.com>'
-    ADMIN_EMAIL = 'admin@dkituyiacademy.com'
+    DEFAULT_FROM_EMAIL = 'dkituyi academy <test@dkituyiacademy.org>'
+    ADMIN_EMAIL = 'admin@dkituyiacademy.org'
 
 # dkituyi academy Branding
 ACADEMY_NAME = 'dkituyi academy'
 ACADEMY_TAGLINE = 'Celebrating Great Literature & Digital Reading'
-ACADEMY_URL = config('ACADEMY_URL', default='https://dkituyiacademy.com')
+ACADEMY_URL = config('ACADEMY_URL', default='https://dkituyiacademy.org')
 
 # Payment Settings (in KES)
 CHAPTER_PRICE = 25

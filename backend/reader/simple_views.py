@@ -153,3 +153,30 @@ class SimpleReaderViewSet(viewsets.GenericViewSet):
                 {'error': f'Failed to update progress: {str(e)}'}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+    
+    @action(detail=False, methods=['get'])
+    def progress(self, request):
+        """Get reading progress for all books"""
+        user_id = self.get_user_id()
+        
+        try:
+            from library.models import ReadingProgress
+            progress_list = ReadingProgress.objects.filter(user_id=user_id).select_related('book')
+            
+            data = []
+            for p in progress_list:
+                data.append({
+                    'book_id': p.book.id,
+                    'book_title': p.book.title,
+                    'current_page': p.current_page,
+                    'total_pages': p.total_pages,
+                    'percent_complete': round((p.current_page / p.total_pages * 100), 1) if p.total_pages else 0,
+                    'last_read_at': p.last_read_at.isoformat() if p.last_read_at else None,
+                })
+            
+            return Response(data)
+        except Exception as e:
+            return Response(
+                {'error': f'Failed to get progress: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

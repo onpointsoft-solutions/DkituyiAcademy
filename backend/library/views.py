@@ -98,17 +98,11 @@ class LibraryViewSet(viewsets.ReadOnlyModelViewSet):
 @method_decorator(csrf_exempt, name='dispatch')
 class UserLibraryViewSet(viewsets.ModelViewSet):
     """User library management ViewSet"""
-    serializer_class = UserLibrarySerializer
     permission_classes = [IsJWTAuthenticated]
-    authentication_classes = []  # Disable session auth to bypass CSRF
-    
-    @csrf_exempt
-    def dispatch(self, request, *args, **kwargs):
-        # Mark the request as CSRF exempt
-        request._dont_enforce_csrf_checks = True
-        return super().dispatch(request, *args, **kwargs)
+    serializer_class = UserLibrarySerializer
     
     def get_queryset(self):
+        print(f"DEBUG: UserLibraryViewSet.get_queryset called")
         user_id = get_jwt_user_id(self.request)
         if not user_id:
             print(f"DEBUG: No user_id found in request")
@@ -116,17 +110,33 @@ class UserLibraryViewSet(viewsets.ModelViewSet):
         
         print(f"DEBUG: Getting library for user_id: {user_id}")
         try:
-            queryset = UserLibrary.objects.filter(user_id=user_id, is_active=True)
+            queryset = UserLibrary.objects.filter(
+                user_id=user_id, is_active=True
+            ).select_related('book', 'book__author')
             print(f"DEBUG: Found {queryset.count()} library entries for user {user_id}")
             return queryset
         except Exception as e:
             print(f"DEBUG: Error in get_queryset: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return UserLibrary.objects.none()
     
     def get_serializer_context(self):
         """Ensure request context is passed to serializer for reading progress"""
         context = super().get_serializer_context()
         context['request'] = self.request
+        
+        # Prefetch all reading progress for this user's library to avoid N+1 queries
+        user_id = get_jwt_user_id(self.request)
+        if user_id:
+            from .models import ReadingProgress
+            progress_data = ReadingProgress.objects.filter(
+                user_id=user_id
+            ).values('book_id', 'progress_percentage', 'last_read')
+            context['progress_cache'] = {
+                f"{user_id}_{p['book_id']}": p for p in progress_data
+            }
+        
         return context
     
     def list(self, request, *args, **kwargs):
@@ -337,11 +347,11 @@ class UserStatsViewSet(viewsets.ReadOnlyModelViewSet):
             total_books=Count('id')
         )
         
-        # Get recent activity
+        # Get recent activity - optimized with select_related
         recent_sessions = ReadingSession.objects.filter(
             user_id=user_id,
             end_time__isnull=False
-        ).order_by('-end_time')[:5]
+        ).select_related('book').order_by('-end_time')[:5]
         
         session_data = ReadingSessionSerializer(recent_sessions, many=True).data
         
@@ -373,7 +383,7 @@ class UserRecentBooksViewSet(viewsets.ReadOnlyModelViewSet):
             return ReadingProgress.objects.none()
         return ReadingProgress.objects.filter(
             user_id=user_id
-        ).order_by('-last_read')[:10]
+        ).select_related('book', 'book__author').order_by('-last_read')[:10]
 
 
 @method_decorator(csrf_exempt, name='dispatch')

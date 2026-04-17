@@ -1,7 +1,7 @@
 import axios from "axios";
 
 // API Configuration
-const API_BASE_URL = 'http://127.0.0.1:8000';
+const API_BASE_URL = 'https://ebooks.dkituyiacademy.org/backend';
 const WORDPRESS_URL = process.env.REACT_APP_WORDPRESS_URL || "https://dkituyiacademy.org";
 
 // CSRF Token Management
@@ -25,7 +25,7 @@ const getCSRFToken = () => {
 const getCSRFTokenFromAPI = async () => {
   try {
     const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    const csrfUrl = 'http://127.0.0.1:8000/api/auth/csrf/';  // Use local backend
+    const csrfUrl = `${API_BASE_URL}/api/auth/csrf/`;
     
     const response = await axios.get(csrfUrl, {
       withCredentials: true,
@@ -42,7 +42,7 @@ const getCSRFTokenFromAPI = async () => {
 
 // Django Backend API
 const api = axios.create({
-  baseURL:'http://127.0.0.1:8000/',// Local backend
+  baseURL: API_BASE_URL,
   timeout: 10000,
   withCredentials: true, // Enable cookies for Django session auth
   headers: {

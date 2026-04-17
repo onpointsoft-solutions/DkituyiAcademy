@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import SimpleRouter
-from .views import BookViewSet, PDFStreamingView, BookProgressView, PublicBookViewSet, test_public_books, PDFMetadataExtractionView
+from .views import BookViewSet, PDFStreamingView, BookProgressView, PublicBookViewSet, test_public_books, PDFMetadataExtractionView, ping
 from .preview_views import BookPreviewViewSet
 
 # Authenticated books router
@@ -13,6 +13,7 @@ public_router = SimpleRouter()
 public_router.register(r'public', PublicBookViewSet, basename='public-book')
 
 urlpatterns = [
+    path('ping/', ping, name='ping'),
     path('test/', test_public_books, name='test-public-books'),
     path('extract-metadata/', PDFMetadataExtractionView.as_view(), name='pdf-metadata-extraction'),
     path('', include(router.urls)),

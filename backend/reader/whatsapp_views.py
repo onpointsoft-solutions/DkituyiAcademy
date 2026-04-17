@@ -168,11 +168,11 @@ def share_highlight_to_whatsapp(request):
         
         image_data = create_quote_image(quote_text, book_title, author_name, user_name)
         
-        # Generate short link
-        short_link = generate_short_link('highlight', highlight.id)
+        # Generate short link with book preview
+        short_link = generate_short_link('highlight', highlight.id, highlight.book.id)
         
         # Create WhatsApp share URL
-        share_text = f'"{quote_text}"\n\n- {author_name}, "{book_title}"\n\nShared via DK Academy\n{short_link}'
+        share_text = f'"{quote_text}"\n\n- {author_name}, "{book_title}"\n\nRead this book: {short_link}\nShared via DK Academy'
         whatsapp_url = f"https://wa.me/?text={urllib.parse.quote(share_text)}"
         
         # Log share event
@@ -213,11 +213,11 @@ def share_note_to_whatsapp(request):
         
         image_data = create_note_image(note_text, book_title, author_name, user_name)
         
-        # Generate short link
-        short_link = generate_short_link('note', note.id)
+        # Generate short link with book preview
+        short_link = generate_short_link('note', note.id, note.book.id)
         
         # Create WhatsApp share URL
-        share_text = f'Note: "{note_text}"\n\nFrom: "{book_title}" by {author_name}\n\nShared via DK Academy\n{short_link}'
+        share_text = f'Note: "{note_text}"\n\nFrom: "{book_title}" by {author_name}\n\nRead this book: {short_link}\nShared via DK Academy'
         whatsapp_url = f"https://wa.me/?text={urllib.parse.quote(share_text)}"
         
         # Log share event
@@ -257,8 +257,8 @@ def share_achievement_to_whatsapp(request):
         user_name = request.user.username if hasattr(request.user, 'username') else "Reader"
         image_data, share_text = create_achievement_image(achievement_type, book, user_name)
         
-        # Generate short link
-        short_link = generate_short_link('achievement', f"{achievement_type}_{book_id or 'general'}")
+        # Generate short link with book preview
+        short_link = generate_short_link('achievement', f"{achievement_type}_{book_id or 'general'}", book_id)
         
         # Create WhatsApp share URL
         whatsapp_url = f"https://wa.me/?text={urllib.parse.quote(share_text)}"
@@ -544,15 +544,38 @@ def wrap_text(text, max_width, font):
     return lines
 
 
-def generate_short_link(content_type, content_id):
-    """Generate a short link for shared content"""
+def generate_short_link(content_type, content_id, book_id=None):
+    """Generate a short link for shared content with book preview"""
     try:
-        # For now, generate a simple URL. In production, use a URL shortener service
-        base_url = getattr(settings, 'BASE_URL', 'https://dkacademy.co.ke')
-        return f"{base_url}/share/{content_type}/{content_id}"
+        # Use the actual frontend URL for book preview
+        base_url = getattr(settings, 'FRONTEND_URL', 'https://ebooks.dkituyiacademy.org')
+        
+        if book_id:
+            # Create direct book preview link
+            return f"{base_url}/book/{book_id}"
+        elif content_type == 'highlight':
+            # Get book_id from highlight
+            try:
+                from .models import Highlight
+                highlight = Highlight.objects.get(id=content_id)
+                return f"{base_url}/book/{highlight.book.id}"
+            except:
+                return f"{base_url}/"
+        elif content_type == 'note':
+            # Get book_id from note
+            try:
+                from .models import Note
+                note = Note.objects.get(id=content_id)
+                return f"{base_url}/book/{note.book.id}"
+            except:
+                return f"{base_url}/"
+        else:
+            # Fallback to generic share link
+            return f"{base_url}/share/{content_type}/{content_id}"
+            
     except Exception as e:
         logger.error(f"Error generating short link: {e}")
-        return "https://dkacademy.co.ke"
+        return "https://ebooks.dkituyiacademy.org"
 
 
 def generate_whatsapp_share_url(text, link):
