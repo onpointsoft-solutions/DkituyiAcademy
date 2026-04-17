@@ -19,7 +19,7 @@ import random
 
 from .models import Highlight, Note
 from books.models import Book
-from reader.models import UnlockedChapter, UnlockedPage
+from reader.models import UnlockedPage
 
 logger = logging.getLogger(__name__)
 
