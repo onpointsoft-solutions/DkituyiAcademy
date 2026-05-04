@@ -1,9 +1,82 @@
 import requests
 import uuid
+import logging
 from datetime import datetime
 from django.conf import settings
 from django.utils import timezone
+from django.core.mail import send_mail
+from django.contrib.auth import get_user_model
 from .models import PaystackPayment, Wallet, Transaction
+
+User = get_user_model()
+logger = logging.getLogger(__name__)
+
+def send_wallet_funding_notification(user_id, amount, reference, payment_method='Paystack'):
+    """
+    Send email notification when coins are added to wallet
+    
+    Args:
+        user_id: ID of the user who added coins
+        amount: Amount added to wallet
+        reference: Payment reference
+        payment_method: Method used for payment (Paystack, Admin, etc.)
+    """
+    try:
+        user = User.objects.get(id=user_id)
+        wallet = Wallet.objects.get(user_id=user_id)
+        
+        logger.info(f"=== WALLET FUNDING EMAIL NOTIFICATION ===")
+        logger.info(f"User ID: {user_id}")
+        logger.info(f"User Email: {user.email}")
+        logger.info(f"User Name: {user.get_full_name() or 'N/A'}")
+        logger.info(f"Amount Added: KES {amount}")
+        logger.info(f"New Balance: KES {wallet.balance}")
+        logger.info(f"Payment Method: {payment_method}")
+        logger.info(f"Reference: {reference}")
+        
+        subject = f"Wallet Funding Notification - KES {amount} Added"
+        
+        message = f"""
+User: {user.email} ({user.get_full_name() or 'N/A'})
+User ID: {user_id}
+Action: Wallet Funding
+Amount Added: KES {amount}
+New Balance: KES {wallet.balance}
+Payment Method: {payment_method}
+Reference: {reference}
+Date: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}
+"""
+        
+        # Email configuration check
+        logger.info(f"Email Backend: {settings.EMAIL_BACKEND}")
+        logger.info(f"From Email: {settings.DEFAULT_FROM_EMAIL}")
+        logger.info(f"To Email: books@dkituyiacademy.org")
+        
+        # Send email to books@dkituyiacademy.org
+        result = send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=['books@dkituyiacademy.org'],
+            fail_silently=False,
+        )
+        
+        logger.info(f"Email send result: {result}")
+        logger.info(f"Wallet funding notification email sent successfully")
+        logger.info("==========================================")
+        return True
+        
+    except User.DoesNotExist:
+        logger.error(f"User with ID {user_id} not found for wallet funding notification")
+        return False
+    except Wallet.DoesNotExist:
+        logger.error(f"Wallet for user {user_id} not found for wallet funding notification")
+        return False
+    except Exception as e:
+        logger.error(f"Failed to send wallet funding notification email: {str(e)}")
+        logger.error(f"Email config: Backend={settings.EMAIL_BACKEND}, Host={getattr(settings, 'EMAIL_HOST', 'Not set')}")
+        logger.error("==========================================")
+        return False
 
 class PaystackService:
     """Paystack payment integration service"""
@@ -137,6 +210,14 @@ class PaystackService:
                     paystack_reference=reference
                 )
                 
+                # Send email notification
+                send_wallet_funding_notification(
+                    user_id=paystack_payment.user_id,
+                    amount=paystack_payment.amount,
+                    reference=reference,
+                    payment_method="Paystack (SIMULATED)"
+                )
+                
                 return {"success": True, "message": "SIMULATION: Payment verified successfully"}
                 
             except PaystackPayment.DoesNotExist:
@@ -185,6 +266,14 @@ class PaystackService:
                     status="completed",
                     description=f"Paystack top-up - {reference}",
                     paystack_reference=reference
+                )
+                
+                # Send email notification
+                send_wallet_funding_notification(
+                    user_id=paystack_payment.user_id,
+                    amount=paystack_payment.amount,
+                    reference=reference,
+                    payment_method="Paystack"
                 )
                 
                 return {"success": True, "message": "Payment verified successfully"}

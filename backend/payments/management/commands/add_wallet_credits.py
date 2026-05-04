@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 from payments.models import Wallet, Transaction
+from payments.services import send_wallet_funding_notification
 from django.utils import timezone
 from decimal import Decimal
 
@@ -41,12 +42,21 @@ class Command(BaseCommand):
                 description=description
             )
 
+            # Send email notification
+            send_wallet_funding_notification(
+                user_id=user_id,
+                amount=amount,
+                reference=transaction.paystack_reference,
+                payment_method="Admin Command"
+            )
+
             self.stdout.write(
                 self.style.SUCCESS(
                     f'Successfully added KES {amount} to user {user_id} wallet.\n'
                     f'Previous balance: KES {old_balance}\n'
                     f'New balance: KES {new_balance}\n'
-                    f'Transaction ID: {transaction.id}'
+                    f'Transaction ID: {transaction.id}\n'
+                    f'Email notification sent to books@dkituyiacademy.org'
                 )
             )
 

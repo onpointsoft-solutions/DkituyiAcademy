@@ -37,8 +37,23 @@ def send_unlock_notification_email(user_id, book, unlock_type, details, amount_p
         details: dict with additional details (page_number or chapter_number)
         amount_paid: amount paid for the unlock
     """
+    import logging
+    from django.conf import settings
+    from django.core.mail import send_mail
+    from django.utils import timezone
+    
+    logger = logging.getLogger(__name__)
+    
+    logger.info(f"=== UNLOCK EMAIL NOTIFICATION ===")
+    logger.info(f"User ID: {user_id}")
+    logger.info(f"Book: {book.title} (ID: {book.id})")
+    logger.info(f"Unlock Type: {unlock_type}")
+    logger.info(f"Details: {details}")
+    logger.info(f"Amount Paid: {amount_paid}")
+    
     try:
         user = User.objects.get(id=user_id)
+        logger.info(f"User found: {user.email}")
         
         # Prepare email content
         if unlock_type == 'page':
@@ -64,22 +79,32 @@ User ID: {user_id}
 Book ID: {book.id}
 """
         else:
+            logger.error(f"Unknown unlock type: {unlock_type}")
             return False
         
+        # Email configuration check
+        logger.info(f"Email Backend: {settings.EMAIL_BACKEND}")
+        logger.info(f"From Email: {settings.DEFAULT_FROM_EMAIL}")
+        logger.info(f"To Email: books@dkituyiacademy.org")
+        
         # Send email to books@dkituyiacademy.org
-        send_mail(
+        result = send_mail(
             subject=subject,
             message=message,
-            from_email='dkituyi academy <noreply@dkituyiacademy.com>',
+            from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=['books@dkituyiacademy.org'],
             fail_silently=False,
         )
         
-        print(f"DEBUG: Unlock notification email sent for {unlock_type} unlock")
+        logger.info(f"Email send result: {result}")
+        logger.info(f"Unlock notification email sent successfully for {unlock_type} unlock")
+        logger.info("===============================")
         return True
         
     except Exception as e:
-        print(f"ERROR: Failed to send unlock notification email: {str(e)}")
+        logger.error(f"Failed to send unlock notification email: {str(e)}")
+        logger.error(f"Email config: Backend={settings.EMAIL_BACKEND}, Host={getattr(settings, 'EMAIL_HOST', 'Not set')}")
+        logger.error("===============================")
         return False
 
 

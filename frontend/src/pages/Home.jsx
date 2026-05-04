@@ -381,14 +381,9 @@ export default function Home() {
       setLoading(true);
       setError(null);
       
-      // First test if server is responding
-      console.log('Testing server ping...');
-      const pingResponse = await api.get('/api/books/ping/', { timeout: 3000 });
-      console.log('Server ping successful:', pingResponse.data);
-      
-      // Now fetch books with optimized endpoint
+      // Fetch books directly with optimized endpoint
       console.log('Fetching books...');
-      const response = await api.get('/api/books/test/', { timeout: 5000 });
+      const response = await api.get('/api/books/test/', { timeout: 8000 });
       
       // Handle different response formats
       let booksArray = [];

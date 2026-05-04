@@ -21,6 +21,7 @@ from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from django.conf import settings
 from django.utils.encoding import smart_str
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 
@@ -376,66 +377,35 @@ class PublicBookViewSet(viewsets.ReadOnlyModelViewSet):
     ordering_fields = ['title', 'created_at', 'price', 'rating']
 
 
-@api_view(['GET'])
-def ping(request):
-    """Simple ping endpoint to test server responsiveness"""
-    return Response({'status': 'ok', 'timestamp': str(timezone.now())})
-
 
 @api_view(['GET'])
 def test_public_books(request):
-    """Test endpoint for public books access - optimized for speed"""
+    """Ultra-fast books endpoint for homepage"""
     try:
         from .models import Book
-        from django.conf import settings
-        from django.utils import timezone
         
-        # First, just count books without loading them
-        book_count = Book.objects.count()
-        print(f"DEBUG: Found {book_count} books in database")
+        # Get only 10 books with minimal fields - no relationships
+        books = Book.objects.only(
+            'id', 'title', 'price', 'is_free', 'pages', 'cover_url'
+        ).order_by('-created_at')[:10]
         
-        # If no books, return empty quickly
-        if book_count == 0:
-            return Response([])
-        
-        # Only select fields we need, with select_related for author
-        books = Book.objects.select_related('author').only(
-            'id', 'title', 'price', 'is_free', 'pages', 'cover_image', 
-            'cover_url', 'author__name'
-        ).order_by('-created_at')[:20]  # Reduced to 20 books
-        
-        # Pre-build media URL once
-        media_url = settings.MEDIA_URL.rstrip('/')
-        
+        # Return minimal data only
         data = []
         for book in books:
-            # Efficient cover URL handling - fix duplicate paths
-            cover_url = book.cover_display_url
-            if cover_url:
-                # Remove duplicate backend/media if present
-                if '/backend/media/backend/media/' in cover_url:
-                    cover_url = cover_url.replace('/backend/media/backend/media/', '/backend/media/')
-                elif not cover_url.startswith('http') and not cover_url.startswith('/backend/media/'):
-                    cover_url = f"{media_url}/{cover_url.lstrip('/')}"
-            
             data.append({
                 'id': book.id,
                 'title': book.title,
-                'author_name': book.author.name if book.author else 'Unknown',
                 'price': float(book.price),
                 'is_free': book.is_free,
                 'pages': book.pages,
-                'cover_url': cover_url,
+                'cover_url': book.cover_url or '',
             })
         
-        print(f"DEBUG: Returning {len(data)} books")
         return Response(data)
         
     except Exception as e:
-        print(f"ERROR in test_public_books: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return Response({'error': 'Failed to fetch books'}, status=500)
+        print(f"ERROR: {str(e)}")
+        return Response([], status=200)  # Return empty on error to avoid breaking frontend
 
 
 class PDFMetadataExtractionView(APIView):

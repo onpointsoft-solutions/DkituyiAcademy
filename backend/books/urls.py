@@ -13,7 +13,6 @@ public_router = SimpleRouter()
 public_router.register(r'public', PublicBookViewSet, basename='public-book')
 
 urlpatterns = [
-    path('ping/', ping, name='ping'),
     path('test/', test_public_books, name='test-public-books'),
     path('extract-metadata/', PDFMetadataExtractionView.as_view(), name='pdf-metadata-extraction'),
     path('', include(router.urls)),

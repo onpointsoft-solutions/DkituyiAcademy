@@ -164,15 +164,24 @@ function Swatch({ name, hex, active, onClick }) {
 }
 
 // ─── Build share text ─────────────────────────────────────────────────────────
-function buildWAText(quote, bookTitle, authorName, userName) {
-  const truncated = quote.length > 200
-    ? quote.slice(0, 200).trimEnd() + "…"
-    : quote;
+function buildWAText(quote, bookTitle, authorName, userName, bookId) {
+  // Make quote more precise - remove extra whitespace and clean up
+  const cleanQuote = quote.trim().replace(/\s+/g, ' ').replace(/[""'']/g, '');
+  const truncated = cleanQuote.length > 150
+    ? cleanQuote.slice(0, 150).trimEnd() + "…"
+    : cleanQuote;
 
   const parts = [`📖 *${bookTitle || "A great read"}*`];
   if (authorName) parts.push(`_by ${authorName}_`);
   parts.push("");
   parts.push(`"${truncated}"`);
+  
+  // Add book preview link
+  if (bookId) {
+    parts.push("");
+    parts.push(`📖 Read this book: https://ebooks.dkituyiacademy.org/reader/${bookId}?preview=true`);
+  }
+  
   parts.push("");
   parts.push(`— shared via *DKituyi Academy*${userName ? ` by ${userName}` : ""}`);
   return parts.join("\n");
@@ -389,8 +398,8 @@ async function generateQuoteImage(quote, bookTitle, authorName) {
 }
 
 // ─── Share to WhatsApp ────────────────────────────────────────────────────────
-async function shareToWhatsApp({ quote, bookTitle, authorName, userName, withImage = false }) {
-  const text = buildWAText(quote, bookTitle, authorName, userName);
+async function shareToWhatsApp({ quote, bookTitle, authorName, userName, bookId, withImage = false }) {
+  const text = buildWAText(quote, bookTitle, authorName, userName, bookId);
 
   // Try native Web Share API with image
   if (withImage && navigator.share && navigator.canShare) {
@@ -432,7 +441,7 @@ async function shareToWhatsApp({ quote, bookTitle, authorName, userName, withIma
 
 // ─── Floating WhatsApp Share ──────────────────────────────────────────────────
 // State machine: idle → selecting → preview → sharing
-function FloatingWhatsAppShare({ selectedText, onActivateSelection, onClose, bookTitle, authorName, userName }) {
+function FloatingWhatsAppShare({ selectedText, onActivateSelection, onClose, bookTitle, authorName, userName, bookId }) {
   const [expanded, setExpanded] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [imageData, setImageData] = useState(null);
@@ -458,7 +467,7 @@ function FloatingWhatsAppShare({ selectedText, onActivateSelection, onClose, boo
     setSharing(true);
     await shareToWhatsApp({
       quote: selectedText,
-      bookTitle, authorName, userName,
+      bookTitle, authorName, userName, bookId: bookId,
       withImage: withImg,
     });
     setSharing(false);
@@ -467,7 +476,7 @@ function FloatingWhatsAppShare({ selectedText, onActivateSelection, onClose, boo
   };
 
   const handleCopy = () => {
-    const text = buildWAText(selectedText, bookTitle, authorName, userName);
+    const text = buildWAText(selectedText, bookTitle, authorName, userName, bookId);
     navigator.clipboard?.writeText(text).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
@@ -1960,6 +1969,7 @@ export default function PDFReader() {
         }}
         onClose={clearShareSelection}
         bookTitle={book?.title}
+        bookId={bookId}
         authorName={book?.author}
         userName={user?.username || user?.first_name}
       />
